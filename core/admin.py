@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry
+from .models import User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry, LibraryResource
 
 # 1. Custom User Admin
 @admin.register(User)
@@ -53,3 +53,11 @@ class SymptomEntryAdmin(admin.ModelAdmin):
     list_filter = ('symptom_type', 'severity', 'is_deleted')
     search_fields = ('profile__anonymous_id', 'symptom_type')
     readonly_fields = ('id', 'last_modified')
+
+# 6. Library Resource Admin
+@admin.register(LibraryResource)
+class LibraryResourceAdmin(admin.ModelAdmin):
+    list_display = ('title', 'topic', 'created_by', 'created_at', 'is_published')
+    list_filter = ('topic', 'is_published', 'created_at')
+    search_fields = ('title', 'content', 'created_by__username')
+    readonly_fields = ('id', 'created_at', 'updated_at')

@@ -88,3 +88,41 @@ class LibraryResource(models.Model):
 
     def __str__(self):
         return f"{self.topic}: {self.title}"
+    
+
+class Notification(BaseModel):
+    NOTIFICATION_TYPES = [
+        ('daily_reminder', 'Daily Reminder'),
+        ('period_reminder', 'Period Reminder'),
+        ('article', 'New Article'),
+        ('advice', 'New Advice'),
+    ]
+    profile = models.ForeignKey('AdolescentProfile', on_delete=models.CASCADE, related_name='notifications')
+    type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+class AdviceMessage(BaseModel):
+    SENDER_TYPES = [('chw', 'CHW'), ('ai', 'AI')]
+    
+    profile = models.ForeignKey('AdolescentProfile', on_delete=models.CASCADE, related_name='advice_messages')
+    sender_type = models.CharField(max_length=10, choices=SENDER_TYPES)
+    sender_name = models.CharField(max_length=100, default="HemaCycle AI")
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at'] # Chronological for chat UI
+
+class NutritionEntry(BaseModel):
+    """Requested in Section 8 of your spec for Syncing"""
+    profile = models.ForeignKey('AdolescentProfile', on_delete=models.CASCADE, related_name='nutrition_logs')
+    date = models.DateField()
+    score = models.IntegerField(default=0) # e.g., 1-10 based on iron-rich food intake
+    notes = models.TextField(blank=True, null=True)

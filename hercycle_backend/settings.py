@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',    
     'rest_framework',
     'core',
+    'api',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -116,11 +118,30 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.SessionAuthentication',
+        # 1. For the Mobile App (HemaCycle Android)
         'rest_framework_simplejwt.authentication.JWTAuthentication',
+        
+        # 2. Add this back! For the Web Dashboards (CHVs & Admins)
+        'rest_framework.authentication.SessionAuthentication',
+        
+        # (Optional) Helpful if you are testing endpoints directly in the browser
+        'rest_framework.authentication.BasicAuthentication',
     ),
+    
+    # ... keep your existing pagination and renderer settings here ...
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10  # This tells Django to only send 10 girls per request
+    'PAGE_SIZE': 20,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    # 'DEFAULT_RENDERER_CLASSES': (
+    #     'api.renderers.EnvelopeJSONRenderer',
+    # ),
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'HemaCycle Mobile API',
+    'DESCRIPTION': 'Version 1 of the offline-first API for HemaCycle mobile apps.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 if not DEBUG:

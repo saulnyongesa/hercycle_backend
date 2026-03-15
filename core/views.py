@@ -378,20 +378,52 @@ class SyncDataView(APIView):
         }, status=status.HTTP_200_OK)
     
 
+# --- HTML View ---
+@login_required(login_url='chv-landing')
 def library_view(request):
-    """Stand-alone Library Management Page."""
+    """
+    Stand-alone Library Management Page.
+    Only accessible by Staff or Approved CHVs.
+    """
+    user = request.user
+    is_approved_chv = hasattr(user, 'chv_profile') and user.chv_profile.is_approved
+    
+    if not (user.is_staff or is_approved_chv):
+        # Redirect unauthorized users (like Adolescents) back to landing or raise error
+        return redirect('chv-landing')
+        
     return render(request, 'core/library.html')
 
+# --- API Viewset ---
 class LibraryResourceViewSet(viewsets.ModelViewSet):
     queryset = LibraryResource.objects.all().order_by('-created_at')
     serializer_class = LibraryResourceSerializer
+    # 1. Ensure user is logged in for all API calls
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Optional: If you want girls to see only 'published' articles 
+        but CHVs to see everything.
+        """
+        user = self.request.user
+        if user.is_staff or (hasattr(user, 'chv_profile') and user.chv_profile.is_approved):
+            return LibraryResource.objects.all().order_by('-created_at')
+        
+        # Adolescents only see published content
+        return LibraryResource.objects.filter(is_published=True).order_by('-created_at')
 
     def perform_create(self, serializer):
+        # 2. Attach the logged-in user as the author
         serializer.save(created_by=self.request.user)
 
     @action(detail=True, methods=['post'])
     def toggle_publish(self, request, pk=None):
+        # 3. Extra Security: Only authors or staff can publish/unpublish
         resource = self.get_object()
+        if not (request.user.is_staff or resource.created_by == request.user):
+            return Response({"error": "Not authorized to change status"}, status=403)
+            
         resource.is_published = not resource.is_published
         resource.save()
         return Response({'status': 'success', 'is_published': resource.is_published})
