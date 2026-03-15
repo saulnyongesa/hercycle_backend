@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HerCycle Master Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        .navbar { background: linear-gradient(135deg, #8e24aa 0%, #d81b60 100%); }
+        .card { border-radius: 12px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .nav-tabs .nav-link { color: #6c757d; font-weight: 600; border: none; margin-right: 1rem; }
+        .nav-tabs .nav-link.active { color: #d81b60; border-bottom: 3px solid #d81b60; background: none !important; }
+        .badge-pending { background-color: #fff3e0; color: #ef6c00; border: 1px solid #ffe0b2; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark mb-4 shadow">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="#">HerCycle Master Admin</a>
+        <div class="d-flex">
+            <a href="{% url 'chv-logout' %}" class="btn btn-outline-light btn-sm">Logout</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3"><div class="card p-3 text-center border-top border-4 border-primary"><h6>Total Girls</h6><h2 class="fw-bold">{{ stats.total_girls }}</h2></div></div>
+        <div class="col-md-3 mb-3"><div class="card p-3 text-center border-top border-4 border-success"><h6>Active CHVs</h6><h2 class="fw-bold">{{ stats.total_chvs }}</h2></div></div>
+        <div class="col-md-3 mb-3"><div class="card p-3 text-center border-top border-4 border-warning"><h6>Pending CHVs</h6><h2 class="fw-bold">{{ stats.pending_chvs }}</h2></div></div>
+        <div class="col-md-3 mb-3"><div class="card p-3 text-center border-top border-4 border-info"><h6>Total Logs</h6><h2 class="fw-bold">{{ stats.total_cycles }}</h2></div></div>
+    </div>
+
+    <ul class="nav nav-tabs mb-4" id="adminTabHeader" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" id="girls-tab-btn" data-bs-toggle="tab" data-bs-target="#girls-panel" type="button" role="tab">Manage Girls</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="chvs-tab-btn" data-bs-toggle="tab" data-bs-target="#chvs-panel" type="button" role="tab">Manage CHVs</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" id="stats-tab-btn" data-bs-toggle="tab" data-bs-target="#stats-panel" type="button" role="tab">System Analytics</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="adminTabContent">
+        <div class="tab-pane fade show active" id="girls-panel" role="tabpanel">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between mb-3">
+                    <input type="text" id="girlSearch" class="form-control w-50" placeholder="Search across all girls...">
+                    <a href="{% url 'admin-export-all' %}" class="btn btn-dark btn-sm">Master CSV Export</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light small text-uppercase">
+                            <tr><th>Username</th><th>Age</th><th>Logs</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="girlsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="girlsPagination" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="chvs-panel" role="tabpanel">
+            <div class="card p-4">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light small text-uppercase">
+                            <tr><th>CHV Username</th><th>Organization</th><th>Status</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="chvTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="stats-panel" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card p-4 h-100">
+                        <h6 class="fw-bold text-center mb-4">Global Symptom Frequency</h6>
+                        <canvas id="globalSymptomsChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card p-4 h-100">
+                        <h6 class="fw-bold text-center mb-4">System Age Demographics</h6>
+                        <canvas id="globalAgeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let symptomsChart = null;
+    let ageChart = null;
+
+    // --- TAB PERSISTENCE LOGIC ---
+    const persistTabs = () => {
+        const activeTabId = localStorage.getItem('activeAdminTab');
+        if (activeTabId) {
+            const tabEl = document.querySelector(`#${activeTabId}`);
+            if (tabEl) {
+                const tab = new bootstrap.Tab(tabEl);
+                tab.show();
+            }
+        }
+
+        const tabButtons = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('shown.bs.tab', (e) => {
+                localStorage.setItem('activeAdminTab', e.target.id);
+            });
+        });
+    };
+
+    // --- CHV Management ---
+    function fetchCHVs() {
+        fetch('/api/admin/chvs/')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('chvTableBody');
+                tbody.innerHTML = '';
+                // Handle both paginated and non-paginated responses
+                const results = data.results || data; 
+                results.forEach(chv => {
+                    const statusBadge = chv.is_approved ? 'bg-success' : 'badge-pending';
+                    const btnText = chv.is_approved ? 'Deactivate' : 'Approve';
+                    const btnClass = chv.is_approved ? 'btn-outline-danger' : 'btn-success';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold">${chv.user_username}</td>
+                            <td>${chv.organization}</td>
+                            <td><span class="badge ${statusBadge}">${chv.is_approved ? 'Approved' : 'Pending'}</span></td>
+                            <td>
+                                <button class="btn btn-sm ${btnClass}" onclick="toggleCHV(${chv.id})">${btnText}</button>
+                                <button class="btn btn-sm btn-light text-danger ms-2" onclick="deleteCHV(${chv.id})">Remove</button>
+                            </td>
+                        </tr>`;
+                });
+            });
+    }
+
+    function toggleCHV(id) {
+        fetch(`/api/admin/chvs/${id}/toggle_approval/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        }).then(() => fetchCHVs());
+    }
+
+    function deleteCHV(id) {
+        if(confirm("Permanently delete this CHV? This cannot be undone.")) {
+            fetch(`/api/admin/chvs/${id}/remove_chv/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(() => fetchCHVs());
+        }
+    }
+
+    // --- Girls Management ---
+    function fetchGirls(url = '/api/chv/users/') {
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('girlsTableBody');
+                tbody.innerHTML = '';
+                data.results.forEach(girl => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="fw-bold">${girl.username}</td>
+                            <td>${girl.age || '--'}</td>
+                            <td><span class="badge bg-light text-dark border">${girl.cycles.length} Logs</span></td>
+                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteGirl('${girl.anonymous_id}')">Delete</button></td>
+                        </tr>`;
+                });
+                renderPagination(data);
+                updateCharts(data.results);
+            });
+    }
+
+    function deleteGirl(id) {
+        if(confirm("Permanently remove this girl's data?")) {
+            fetch(`/api/chv/users/${id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            }).then(() => fetchGirls());
+        }
+    }
+
+    function renderPagination(data) {
+        const div = document.getElementById('girlsPagination');
+        div.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span class="small text-muted">Total: ${data.count} Girls</span>
+                <div>
+                    <button class="btn btn-sm btn-outline-secondary" ${!data.previous ? 'disabled':''} onclick="fetchGirls('${data.previous}')">Previous</button>
+                    <button class="btn btn-sm btn-outline-secondary" ${!data.next ? 'disabled':''} onclick="fetchGirls('${data.next}')">Next</button>
+                </div>
+            </div>`;
+    }
+
+    // --- Charts ---
+    function updateCharts(users) {
+        const symps = {};
+        const ages = {'Under 15': 0, '15-19': 0, '20+': 0};
+        
+        users.forEach(u => {
+            u.symptoms.forEach(s => symps[s.symptom_type] = (symps[s.symptom_type] || 0) + 1);
+            if(u.age < 15) ages['Under 15']++;
+            else if(u.age <= 19) ages['15-19']++;
+            else ages['20+']++;
+        });
+
+        if(symptomsChart) symptomsChart.destroy();
+        symptomsChart = new Chart(document.getElementById('globalSymptomsChart'), {
+            type: 'bar',
+            data: { labels: Object.keys(symps), datasets: [{ label: 'Occurrences', data: Object.values(symps), backgroundColor: '#d81b60' }] }
+        });
+
+        if(ageChart) ageChart.destroy();
+        ageChart = new Chart(document.getElementById('globalAgeChart'), {
+            type: 'doughnut',
+            data: { labels: Object.keys(ages), datasets: [{ data: Object.values(ages), backgroundColor: ['#ffb74d', '#4fc3f7', '#81c784'] }] }
+        });
+    }
+
+    document.getElementById('girlSearch').addEventListener('input', (e) => fetchGirls(`/api/chv/users/?search=${e.target.value}`));
+
+    document.addEventListener('DOMContentLoaded', () => {
+        persistTabs(); // Initialize tab memory
+        fetchCHVs();
+        fetchGirls();
+    });
+</script>
+</body>
+</html>
