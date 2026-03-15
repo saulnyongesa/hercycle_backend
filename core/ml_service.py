@@ -1,39 +1,55 @@
+import joblib
+import os
+import numpy as np
+
+# Load the brain
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+model_path = os.path.join(BASE_DIR, 'anemia_model.pkl')
+
+try:
+    anemia_model = joblib.load(model_path)
+except:
+    anemia_model = None
+
 def analyze_health_data(cycles, symptoms):
-    """
-    Analyzes historical cycle and symptom data to determine anemia risk.
-    """
-    # 1. Extract risk factors
-    heavy_cycles = [c for c in cycles if c.flow_intensity.lower() == 'heavy']
+    if not anemia_model:
+        return {"anemia_risk": "Low", "insights": ["System in standby."]}
+
+    # 1. Feature Extraction
+    flow_map = {'Light': 1, 'Medium': 2, 'Heavy': 3}
+    recent_flow = flow_map.get(cycles[0].flow_intensity, 2) if cycles else 2
     
-    # Check for anemia-specific symptoms (fatigue, dizziness) with high severity
-    critical_symptoms = [
-        s for s in symptoms 
-        if s.symptom_type.lower() in ['fatigue', 'dizziness', 'headache', 'pale skin'] 
-        and s.severity >= 3
-    ]
+    symp_types = [s.symptom_type.lower() for s in symptoms[:10]]
+    fatigue = 1 if 'fatigue' in symp_types else 0
+    dizziness = 1 if 'dizziness' in symp_types else 0
+    pale_skin = 1 if 'pale skin' in symp_types else 0
+    
+    cycle_len = 28
+    if len(cycles) >= 2:
+        delta = cycles[0].start_date - cycles[1].start_date
+        cycle_len = abs(delta.days) # Use absolute to prevent negative lengths
 
-    # 2. Base Classification Logic
-    risk_level = "Low"
-    suggestions = ["Cycle patterns appear normal. Maintain a balanced diet."]
+    # 2. SEND AS NUMPY ARRAY (Fixes the ValueError)
+    # The order must match: flow, fatigue, dizziness, pale_skin, cycle_len
+    features = np.array([[recent_flow, fatigue, dizziness, pale_skin, cycle_len]])
 
-    if len(heavy_cycles) >= 2 and len(critical_symptoms) >= 1:
-        risk_level = "High"
-        suggestions = [
-            "High risk of anemia detected due to recurring heavy flow and severe fatigue/dizziness.",
-            "Recommend immediate iron supplements (e.g., IFAS).",
-            "Refer the girl to the nearest health facility for a hemoglobin (Hb) test."
-        ]
-    elif len(heavy_cycles) >= 1 or len(critical_symptoms) >= 1:
-        risk_level = "Moderate"
-        suggestions = [
-            "Moderate risk factors present. Monitor flow intensity closely next cycle.",
-            "Advise increasing intake of iron-rich foods (spinach, beans, fortified cereals)."
-        ]
+    # 3. Predict
+    try:
+        prediction = anemia_model.predict(features)[0]
+    except Exception as e:
+        print(f"ML Prediction Error: {e}")
+        return {"anemia_risk": "Unknown", "insights": ["Analysis engine error."]}
+    
+    risk_map = {0: 'Low', 1: 'Moderate', 2: 'High'}
+    risk = risk_map.get(prediction, 'Low')
 
-    # 3. Return the payload
-    return {
-        "anemia_risk": risk_level,
-        "insights": suggestions,
-        "heavy_cycles_count": len(heavy_cycles),
-        "critical_symptoms_count": len(critical_symptoms)
-    }
+    # Insights
+    insights = []
+    if risk == 'High':
+        insights = ["High Risk: Heavy flow + clinical symptoms.", "Clinical referral is strongly advised."]
+    elif risk == 'Moderate':
+        insights = ["Warning: Pattern suggests early iron deficiency.", "Increase consumption of iron-rich foods."]
+    else:
+        insights = ["Status normal. Adolescent should keep logging."]
+
+    return {"anemia_risk": risk, "insights": insights}
