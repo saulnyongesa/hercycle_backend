@@ -14,9 +14,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from dateutil.parser import parse
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import AdolescentProfile, CHVProfile, CycleEntry, SymptomEntry, User
+from .models import AdolescentProfile, CHVProfile, CycleEntry, LibraryResource, SymptomEntry, User
 from .serializers import (
     CHVProfileSerializer,
+    LibraryResourceSerializer,
     SelfRegisterSerializer, 
     CHVOnboardUserSerializer, 
     AdolescentProfileSerializer,
@@ -375,3 +376,22 @@ class SyncDataView(APIView):
             'updates': server_updates,
             'current_server_time': timezone.now().isoformat()
         }, status=status.HTTP_200_OK)
+    
+
+def library_view(request):
+    """Stand-alone Library Management Page."""
+    return render(request, 'core/library.html')
+
+class LibraryResourceViewSet(viewsets.ModelViewSet):
+    queryset = LibraryResource.objects.all().order_by('-created_at')
+    serializer_class = LibraryResourceSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def toggle_publish(self, request, pk=None):
+        resource = self.get_object()
+        resource.is_published = not resource.is_published
+        resource.save()
+        return Response({'status': 'success', 'is_published': resource.is_published})

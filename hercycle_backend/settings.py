@@ -133,6 +133,29 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
+# CKEditor 5 Configuration for your specific features
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': [
+            'heading', '|', 'bold', 'italic', 'fontFamily', 'fontColor', 'alignment', '|',
+            'bulletedList', 'numberedList', 'blockQuote', 'codeBlock', '|',
+            'imageUpload', 'insertTable', 'link', '|', 'undo', 'redo'
+        ],
+        'codeBlock': {
+            'languages': [
+                {'language': 'plaintext', 'label': 'Plain text'},
+                {'language': 'bash', 'label': 'Bash'},
+                {'language': 'python', 'label': 'Python'},
+                {'language': 'html', 'label': 'HTML'},
+                {'language': 'css', 'label': 'CSS'},
+                {'language': 'javascript', 'label': 'JavaScript'}
+            ]
+        },
+        'height': 400,
+        'width': '100%',
+    }
+}
+CKEDITOR_5_FILE_UPLOAD_PERMISSION = "any"
 
 AUTH_USER_MODEL = 'core.User'
 django_heroku.settings(locals())

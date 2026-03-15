@@ -4,6 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from .views import (
     AdminCHVManagementViewSet,
+    LibraryResourceViewSet,
     SelfRegisterView, 
     CHVManagedUsersViewSet, 
     SyncDataView,
@@ -15,13 +16,15 @@ from .views import (
     chv_logout_action,       
     chv_register_action,
     chv_user_detail_view,
-    export_dashboard_csv     
+    export_dashboard_csv,
+    library_view     
 )
 
 router = DefaultRouter()
 router.register(r'chv/users', CHVManagedUsersViewSet, basename='chv-managed-users')
 admin_router = DefaultRouter()
 admin_router.register(r'admin/chvs', AdminCHVManagementViewSet, basename='admin-chv-mgmt')
+router.register(r'library', LibraryResourceViewSet, basename='library-api')
 
 urlpatterns = [
     # --- WEB VIEWS ---
@@ -36,6 +39,8 @@ urlpatterns = [
     path('auth/chv/logout/', chv_logout_action, name='chv-logout'),
     path('admin-dashboard/', admin_dashboard_view, name='admin-dashboard'),
     path('admin/export-all/', admin_export_all_csv, name='admin-export-all'),
+
+    path('library/', library_view, name='library-page'),
 
     # 2. Admin API Endpoints (Included via the router)
     path('api/', include(admin_router.urls)),

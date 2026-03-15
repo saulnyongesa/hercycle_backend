@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import AdolescentProfile, CHVNote, CHVProfile, CycleEntry, SymptomEntry
+from .models import AdolescentProfile, CHVNote, CHVProfile, CycleEntry, LibraryResource, SymptomEntry
 
 User = get_user_model()
 
@@ -77,3 +77,14 @@ class CHVProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CHVProfile
         fields = ['id', 'user_username', 'organization', 'is_approved', 'date_joined', 'last_modified']
+
+class LibraryResourceSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source='created_by.username', read_only=True)
+    topic_display = serializers.CharField(source='get_topic_display', read_only=True)
+    
+    class Meta:
+        model = LibraryResource
+        fields = [
+            'id', 'topic', 'topic_display', 'title', 'content', 
+            'is_published', 'created_by_username', 'created_at', 'updated_at'
+        ]

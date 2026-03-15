@@ -3,6 +3,7 @@ import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
+from django_ckeditor_5.fields import CKEditor5Field
 
 class User(AbstractUser):
     is_chv = models.BooleanField(default=False)
@@ -67,3 +68,23 @@ class SymptomEntry(BaseModel):
     date = models.DateField()
     symptom_type = models.CharField(max_length=100)
     severity = models.IntegerField(default=1)
+
+class LibraryResource(models.Model):
+    TOPIC_CHOICES = [
+        ('Nutrition', 'Nutrition & Diet'),
+        ('Hygiene', 'Menstrual Hygiene'),
+        ('Exercise', 'Physical Activity'),
+        ('Mental Health', 'Emotional Wellbeing'),
+        ('Anemia', 'Anemia Prevention'),
+    ]
+
+    topic = models.CharField(max_length=50, choices=TOPIC_CHOICES)
+    title = models.CharField(max_length=255)
+    content = CKEditor5Field('Content', config_name='default')  # This enables CKEditor
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_published = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.topic}: {self.title}"

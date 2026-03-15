@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HerCycle - Resource Library</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/django-ckeditor-5@0.2.0/dist/ckeditor5.css">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .navbar { background: linear-gradient(135deg, #8e24aa 0%, #d81b60 100%); }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .btn-primary { background-color: #d81b60; border: none; }
+        .btn-primary:hover { background-color: #ad1457; }
+        .topic-badge { background-color: #fce4ec; color: #d81b60; font-weight: 600; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; }
+        /* CKEditor Styling for Preview */
+        .preview-content img { max-width: 100%; height: auto; border-radius: 8px; }
+        .ck-content { min-height: 300px; border: 1px solid #dee2e6 !important; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark shadow-sm mb-4">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'chv-dashboard' %}">← HerCycle Library</a>
+        <button class="btn btn-light btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#editorModal" onclick="clearForm()">+ New Article</button>
+    </div>
+</nav>
+
+<div class="container">
+    <div id="libraryList" class="row">
+        </div>
+</div>
+
+<div class="modal fade" id="editorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="fw-bold">Resource Editor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="resourceForm">
+                    <input type="hidden" id="resourceId">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-muted">TOPIC</label>
+                            <select id="resTopic" class="form-select" required>
+                                <option value="Nutrition">Nutrition & Diet</option>
+                                <option value="Hygiene">Menstrual Hygiene</option>
+                                <option value="Anemia">Anemia Prevention</option>
+                                <option value="Exercise">Physical Activity</option>
+                                <option value="Mental Health">Emotional Wellbeing</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small fw-bold text-muted">TITLE</label>
+                            <input type="text" id="resTitle" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small fw-bold text-muted">CONTENT</label>
+                        <div id="editor"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2">Save Resource</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <span id="previewBadge" class="topic-badge"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <h2 id="previewTitle" class="fw-bold mb-4"></h2>
+                <div id="previewBody" class="preview-content ck-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.ckeditor.com/ckeditor5/39.0.1/classic/ckeditor.js"></script>
+
+<script>
+    let editorInstance;
+    const csrftoken = "{{ csrf_token }}";
+
+    // Initialize CKEditor 5
+    ClassicEditor
+        .create(document.querySelector('#editor'))
+        .then(editor => { editorInstance = editor; })
+        .catch(error => { console.error(error); });
+
+    function fetchLibrary() {
+        fetch('/api/library/')
+            .then(res => res.json())
+            .then(data => {
+                const list = document.getElementById('libraryList');
+                list.innerHTML = '';
+                (data.results || data).forEach(item => {
+                    const publishBtn = item.is_published ? 
+                        `<button class="btn btn-sm btn-warning" onclick="togglePublish(${item.id})">Unpublish</button>` :
+                        `<button class="btn btn-sm btn-success" onclick="togglePublish(${item.id})">Publish</button>`;
+                    
+                    list.innerHTML += `
+                        <div class="col-md-6 mb-4">
+                            <div class="card p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="topic-badge">${item.topic_display}</span>
+                                    <span class="badge ${item.is_published ? 'bg-success' : 'bg-secondary'}">${item.is_published ? 'Live' : 'Draft'}</span>
+                                </div>
+                                <h4 class="fw-bold">${item.title}</h4>
+                                <p class="text-muted small">Updated: ${new Date(item.updated_at).toLocaleDateString()}</p>
+                                <hr>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="viewArticle(${item.id})">Preview</button>
+                                    <button class="btn btn-sm btn-outline-dark" onclick="editArticle(${item.id})">Update</button>
+                                    ${publishBtn}
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteArticle(${item.id})">Delete</button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            });
+    }
+
+    // CREATE / UPDATE
+    document.getElementById('resourceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const id = document.getElementById('resourceId').value;
+        const url = id ? `/api/library/${id}/` : '/api/library/';
+        const method = id ? 'PATCH' : 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+            body: JSON.stringify({
+                topic: document.getElementById('resTopic').value,
+                title: document.getElementById('resTitle').value,
+                content: editorInstance.getData()
+            })
+        }).then(() => {
+            bootstrap.Modal.getInstance(document.getElementById('editorModal')).hide();
+            fetchLibrary();
+        });
+    });
+
+    function togglePublish(id) {
+        fetch(`/api/library/${id}/toggle_publish/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken }
+        }).then(() => fetchLibrary());
+    }
+
+    function deleteArticle(id) {
+        if(confirm("Delete this resource?")) {
+            fetch(`/api/library/${id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': csrftoken }
+            }).then(() => fetchLibrary());
+        }
+    }
+
+    function viewArticle(id) {
+        fetch(`/api/library/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('previewBadge').innerText = data.topic_display;
+                document.getElementById('previewTitle').innerText = data.title;
+                document.getElementById('previewBody').innerHTML = data.content;
+                new bootstrap.Modal(document.getElementById('previewModal')).show();
+            });
+    }
+
+    function editArticle(id) {
+        fetch(`/api/library/${id}/`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('resourceId').value = data.id;
+                document.getElementById('resTopic').value = data.topic;
+                document.getElementById('resTitle').value = data.title;
+                editorInstance.setData(data.content);
+                new bootstrap.Modal(document.getElementById('editorModal')).show();
+            });
+    }
+
+    function clearForm() {
+        document.getElementById('resourceId').value = '';
+        document.getElementById('resTitle').value = '';
+        editorInstance.setData('');
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchLibrary);
+</script>
+</body>
+</html>
