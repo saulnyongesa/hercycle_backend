@@ -76,4 +76,4 @@ class CHVProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CHVProfile
-        fields = ['id', 'user_username', 'organization', 'is_approved', 'date_joined']
+        fields = ['id', 'user_username', 'organization', 'is_approved', 'date_joined', 'last_modified']

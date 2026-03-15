@@ -14,6 +14,7 @@ class CHVProfile(models.Model):
     organization = models.CharField(max_length=255, blank=True)
     is_approved = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True, null=True)
+    last_modified = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
         return f"CHV: {self.user.username}"
@@ -25,6 +26,7 @@ class AdolescentProfile(models.Model):
     anonymous_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     date_of_birth = models.DateField(null=True, blank=True) 
     date_joined = models.DateTimeField(auto_now_add=True, null=True)
+    last_modified = models.DateTimeField(auto_now=True, null=True)
 
     @property
     def age(self):
