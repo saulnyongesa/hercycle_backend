@@ -230,8 +230,16 @@ class SelfRegisterView(generics.CreateAPIView):
 # --- 1. NEW HTML VIEW FOR DETAIL PAGE ---
 @login_required(redirect_field_name='chv-landing')
 def chv_user_detail_view(request, anonymous_id):
-    if not hasattr(request.user, 'chv_profile') or not request.user.chv_profile.is_approved:
-        raise PermissionDenied("You are not an approved CHV.")
+    user = request.user
+    
+    # Check if the user is an Admin (staff) 
+    # OR an approved CHV
+    is_admin = user.is_staff or user.is_superuser
+    is_approved_chv = hasattr(user, 'chv_profile') and user.chv_profile.is_approved
+
+    if not (is_admin or is_approved_chv):
+        raise PermissionDenied("You do not have permission to view this girl's insights.")
+
     # We pass the ID to the template so JS can use it to fetch the data
     return render(request, 'core/chv_user_detail.html', {'anonymous_id': anonymous_id})
 
