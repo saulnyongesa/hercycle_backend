@@ -50,13 +50,16 @@
         <div class="tab-pane fade show active" id="girls-panel" role="tabpanel">
             <div class="card p-4">
                 <div class="d-flex justify-content-between mb-3">
-                    <input type="text" id="girlSearch" class="form-control w-50" placeholder="Search across all girls...">
-                    <a href="{% url 'admin-export-all' %}" class="btn btn-dark btn-sm">Master CSV Export</a>
+                    <input type="text" id="girlSearch" class="form-control w-50" placeholder="Search by Email or ID...">
+                    <div>
+                        <button class="btn btn-primary btn-sm me-2" data-bs-toggle="modal" data-bs-target="#onboardModal" style="background-color: #d81b60; border:none;">+ Onboard Girl</button>
+                        <a href="{% url 'admin-export-all' %}" class="btn btn-dark btn-sm">Master CSV Export</a>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light small text-uppercase">
-                            <tr><th>Username</th><th>Age</th><th>Logs</th><th>Action</th></tr>
+                            <tr><th>Email/Username</th><th>Age</th><th>Logs</th><th>Action</th></tr>
                         </thead>
                         <tbody id="girlsTableBody"></tbody>
                     </table>
@@ -97,51 +100,112 @@
     </div>
 </div>
 
+<div class="modal fade" id="onboardModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" style="color: #d81b60;">Admin: Onboard Girl</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="onboardForm">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">Email Address</label>
+                        <input type="email" id="newEmail" class="form-control" placeholder="user@gmail.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">Date of Birth</label>
+                        <input type="date" id="newDob" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">Initial Password</label>
+                        <input type="password" id="newPassword" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100" style="background-color: #d81b60; border:none;">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="updateModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header border-0">
+                <h5 class="modal-title fw-bold">Update Girl Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="updateForm">
+                <input type="hidden" id="updateId">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">Email (Username)</label>
+                        <input type="email" id="updateEmail" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-uppercase">Date of Birth</label>
+                        <input type="date" id="updateDob" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-primary w-100">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let symptomsChart = null;
     let ageChart = null;
 
-    // --- TAB PERSISTENCE LOGIC ---
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // --- Tab memory ---
     const persistTabs = () => {
         const activeTabId = localStorage.getItem('activeAdminTab');
         if (activeTabId) {
             const tabEl = document.querySelector(`#${activeTabId}`);
-            if (tabEl) {
-                const tab = new bootstrap.Tab(tabEl);
-                tab.show();
-            }
+            if (tabEl) (new bootstrap.Tab(tabEl)).show();
         }
-
-        const tabButtons = document.querySelectorAll('button[data-bs-toggle="tab"]');
-        tabButtons.forEach(btn => {
-            btn.addEventListener('shown.bs.tab', (e) => {
-                localStorage.setItem('activeAdminTab', e.target.id);
-            });
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(btn => {
+            btn.addEventListener('shown.bs.tab', (e) => localStorage.setItem('activeAdminTab', e.target.id));
         });
     };
 
-    // --- CHV Management ---
+    // --- Data Fetching ---
     function fetchCHVs() {
         fetch('/api/admin/chvs/')
             .then(res => res.json())
             .then(data => {
+                const results = data.results || data; 
                 const tbody = document.getElementById('chvTableBody');
                 tbody.innerHTML = '';
-                // Handle both paginated and non-paginated responses
-                const results = data.results || data; 
                 results.forEach(chv => {
                     const statusBadge = chv.is_approved ? 'bg-success' : 'badge-pending';
-                    const btnText = chv.is_approved ? 'Deactivate' : 'Approve';
-                    const btnClass = chv.is_approved ? 'btn-outline-danger' : 'btn-success';
-
                     tbody.innerHTML += `
                         <tr>
                             <td class="fw-bold">${chv.user_username}</td>
                             <td>${chv.organization}</td>
                             <td><span class="badge ${statusBadge}">${chv.is_approved ? 'Approved' : 'Pending'}</span></td>
                             <td>
-                                <button class="btn btn-sm ${btnClass}" onclick="toggleCHV(${chv.id})">${btnText}</button>
+                                <button class="btn btn-sm ${chv.is_approved ? 'btn-outline-danger':'btn-success'}" onclick="toggleCHV(${chv.id})">${chv.is_approved ? 'Deactivate':'Approve'}</button>
                                 <button class="btn btn-sm btn-light text-danger ms-2" onclick="deleteCHV(${chv.id})">Remove</button>
                             </td>
                         </tr>`;
@@ -149,23 +213,6 @@
             });
     }
 
-    function toggleCHV(id) {
-        fetch(`/api/admin/chvs/${id}/toggle_approval/`, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-        }).then(() => fetchCHVs());
-    }
-
-    function deleteCHV(id) {
-        if(confirm("Permanently delete this CHV? This cannot be undone.")) {
-            fetch(`/api/admin/chvs/${id}/remove_chv/`, {
-                method: 'DELETE',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            }).then(() => fetchCHVs());
-        }
-    }
-
-    // --- Girls Management ---
     function fetchGirls(url = '/api/chv/users/') {
         fetch(url)
             .then(res => res.json())
@@ -178,7 +225,11 @@
                             <td class="fw-bold">${girl.username}</td>
                             <td>${girl.age || '--'}</td>
                             <td><span class="badge bg-light text-dark border">${girl.cycles.length} Logs</span></td>
-                            <td><button class="btn btn-sm btn-outline-danger" onclick="deleteGirl('${girl.anonymous_id}')">Delete</button></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="openUpdateModal('${girl.anonymous_id}', '${girl.username}', '${girl.date_of_birth}')">Update</button>
+                                <a href="/dashboard/user/${girl.anonymous_id}/" class="btn btn-sm btn-info text-white ms-1">Insights</a>
+                                <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteGirl('${girl.anonymous_id}')">Delete</button>
+                            </td>
                         </tr>`;
                 });
                 renderPagination(data);
@@ -186,58 +237,91 @@
             });
     }
 
-    function deleteGirl(id) {
-        if(confirm("Permanently remove this girl's data?")) {
-            fetch(`/api/chv/users/${id}/`, {
-                method: 'DELETE',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            }).then(() => fetchGirls());
+    // --- Actions ---
+    function toggleCHV(id) {
+        fetch(`/api/admin/chvs/${id}/toggle_approval/`, { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } }).then(() => fetchCHVs());
+    }
+
+    function deleteCHV(id) {
+        if(confirm("Delete this CHV?")) {
+            fetch(`/api/admin/chvs/${id}/remove_chv/`, { method: 'DELETE', headers: { 'X-CSRFToken': getCookie('csrftoken') } }).then(() => fetchCHVs());
         }
     }
 
+    function deleteGirl(id) {
+        if(confirm("Delete this girl and all her medical history?")) {
+            fetch(`/api/chv/users/${id}/`, { method: 'DELETE', headers: { 'X-CSRFToken': getCookie('csrftoken') } }).then(() => fetchGirls());
+        }
+    }
+
+    // --- Onboarding & Update Form Handlers ---
+    document.getElementById('onboardForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('newEmail').value;
+        fetch('/api/chv/users/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({
+                username: email, email: email,
+                date_of_birth: document.getElementById('newDob').value,
+                password: document.getElementById('newPassword').value,
+                confirm_password: document.getElementById('newPassword').value
+            })
+        }).then(() => location.reload());
+    });
+
+    function openUpdateModal(id, email, dob) {
+        document.getElementById('updateId').value = id;
+        document.getElementById('updateEmail').value = email;
+        document.getElementById('updateDob').value = dob;
+        (new bootstrap.Modal(document.getElementById('updateModal'))).show();
+    }
+
+    document.getElementById('updateForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const id = document.getElementById('updateId').value;
+        fetch(`/api/chv/users/${id}/update_details/`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({
+                username: document.getElementById('updateEmail').value,
+                date_of_birth: document.getElementById('updateDob').value
+            })
+        }).then(() => location.reload());
+    });
+
+    // --- Helpers ---
     function renderPagination(data) {
-        const div = document.getElementById('girlsPagination');
-        div.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center">
-                <span class="small text-muted">Total: ${data.count} Girls</span>
+        document.getElementById('girlsPagination').innerHTML = `
+            <div class="d-flex justify-content-between">
+                <span class="small text-muted">Total: ${data.count}</span>
                 <div>
-                    <button class="btn btn-sm btn-outline-secondary" ${!data.previous ? 'disabled':''} onclick="fetchGirls('${data.previous}')">Previous</button>
-                    <button class="btn btn-sm btn-outline-secondary" ${!data.next ? 'disabled':''} onclick="fetchGirls('${data.next}')">Next</button>
+                    <button class="btn btn-sm btn-outline-secondary" ${!data.previous?'disabled':''} onclick="fetchGirls('${data.previous}')">Prev</button>
+                    <button class="btn btn-sm btn-outline-secondary" ${!data.next?'disabled':''} onclick="fetchGirls('${data.next}')">Next</button>
                 </div>
             </div>`;
     }
 
-    // --- Charts ---
     function updateCharts(users) {
-        const symps = {};
-        const ages = {'Under 15': 0, '15-19': 0, '20+': 0};
-        
+        const symps = {}; const ages = {'Under 15': 0, '15-19': 0, '20+': 0};
         users.forEach(u => {
             u.symptoms.forEach(s => symps[s.symptom_type] = (symps[s.symptom_type] || 0) + 1);
-            if(u.age < 15) ages['Under 15']++;
-            else if(u.age <= 19) ages['15-19']++;
-            else ages['20+']++;
+            if(u.age < 15) ages['Under 15']++; else if(u.age <= 19) ages['15-19']++; else ages['20+']++;
         });
-
         if(symptomsChart) symptomsChart.destroy();
         symptomsChart = new Chart(document.getElementById('globalSymptomsChart'), {
-            type: 'bar',
-            data: { labels: Object.keys(symps), datasets: [{ label: 'Occurrences', data: Object.values(symps), backgroundColor: '#d81b60' }] }
+            type: 'bar', data: { labels: Object.keys(symps), datasets: [{ label: 'Occurrences', data: Object.values(symps), backgroundColor: '#d81b60' }] }
         });
-
         if(ageChart) ageChart.destroy();
         ageChart = new Chart(document.getElementById('globalAgeChart'), {
-            type: 'doughnut',
-            data: { labels: Object.keys(ages), datasets: [{ data: Object.values(ages), backgroundColor: ['#ffb74d', '#4fc3f7', '#81c784'] }] }
+            type: 'doughnut', data: { labels: Object.keys(ages), datasets: [{ data: Object.values(ages), backgroundColor: ['#ffb74d', '#4fc3f7', '#81c784'] }] }
         });
     }
 
     document.getElementById('girlSearch').addEventListener('input', (e) => fetchGirls(`/api/chv/users/?search=${e.target.value}`));
 
     document.addEventListener('DOMContentLoaded', () => {
-        persistTabs(); // Initialize tab memory
-        fetchCHVs();
-        fetchGirls();
+        persistTabs(); fetchCHVs(); fetchGirls();
     });
 </script>
 </body>

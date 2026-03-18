@@ -60,10 +60,10 @@
     <div class="card p-3 mb-4 bg-white shadow-sm">
         <div class="row g-2 align-items-center">
             <div class="col-md-4">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search by Username or ID...">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search by Email or ID...">
             </div>
-            <div class="col-md-4">
-                <p class="text-muted small mb-0 px-2">Note: Advanced filters (Age/Symptoms) apply to the current page. Search applies to the whole database.</p>
+            <div class="col-md-8">
+                <p class="text-muted small mb-0 px-2">Note: Dashboard displays girls assigned specifically to your CHV account.</p>
             </div>
         </div>
     </div>
@@ -73,7 +73,7 @@
         <div class="table-responsive">
             <table class="table table-hover align-middle">
                 <thead class="table-light text-muted small text-uppercase">
-                    <tr><th>ID</th><th>Username</th><th>Age</th><th>Cycles</th><th>Symptoms</th><th class="text-end">Action</th></tr>
+                    <tr><th>ID</th><th>Email (Username)</th><th>Age</th><th>Cycles</th><th>Symptoms</th><th class="text-end">Action</th></tr>
                 </thead>
                 <tbody id="userTableBody">
                     <tr><td colspan="6" class="text-center text-muted py-4">Loading data...</td></tr>
@@ -100,8 +100,9 @@
             <form id="onboardForm">
                 <div class="modal-body p-4">
                     <div class="mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Username</label>
-                        <input type="text" id="newUsername" class="form-control bg-light" required>
+                        <label class="form-label text-muted small text-uppercase fw-bold">Email Address</label>
+                        <input type="email" id="newEmail" class="form-control bg-light" placeholder="girl@example.com" required>
+                        <div class="form-text">This will be used as her login username.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Date of Birth</label>
@@ -115,7 +116,7 @@
                 </div>
                 <div class="modal-footer border-0 pt-0 px-4 pb-4">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4" id="submitBtn" style="background-color: #d81b60; border: none;">Create</button>
+                    <button type="submit" class="btn btn-primary px-4" id="submitBtn" style="background-color: #d81b60; border: none;">Create Account</button>
                 </div>
             </form>
         </div>
@@ -154,16 +155,9 @@
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // Update stats
-                document.getElementById('totalGirlsCount').innerText = data.count;
-                
-                // Render Table
+                document.getElementById('totalGirlsCount').innerText = data.count || 0;
                 renderTable(data.results);
-                
-                // Render Stats/Charts based on THIS page's results
                 updateCharts(data.results);
-
-                // Update Pagination Logic
                 renderPagination(data);
             });
     }
@@ -183,8 +177,8 @@
                     <td><span class="badge bg-secondary">#${shortId}</span></td>
                     <td class="fw-bold">${user.username}</td>
                     <td>${user.age || '--'}</td>
-                    <td><span class="badge bg-success bg-opacity-10 text-success border border-success px-2">${user.cycles.length}</span></td>
-                    <td><span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2">${user.symptoms.length}</span></td>
+                    <td><span class="badge bg-success bg-opacity-10 text-success border border-success px-2">${user.cycles ? user.cycles.length : 0}</span></td>
+                    <td><span class="badge bg-warning bg-opacity-10 text-warning border border-warning px-2">${user.symptoms ? user.symptoms.length : 0}</span></td>
                     <td class="text-end">
                         <a href="/dashboard/user/${user.anonymous_id}/" class="btn btn-sm btn-outline-primary fw-bold">View Insights</a>
                     </td>
@@ -195,30 +189,29 @@
     function renderPagination(data) {
         const ul = document.getElementById('paginationUl');
         ul.innerHTML = '';
+        document.getElementById('paginationInfo').innerText = `Total Records: ${data.count || 0}`;
 
-        // Pagination Info text
-        document.getElementById('paginationInfo').innerText = `Total Records: ${data.count}`;
-
-        // Previous
         ul.innerHTML += `<li class="page-item ${!data.previous ? 'disabled' : ''}">
             <a class="page-link" onclick="if('${data.previous}') fetchUsers('${data.previous}')">Previous</a>
         </li>`;
 
-        // Next
         ul.innerHTML += `<li class="page-item ${!data.next ? 'disabled' : ''}">
             <a class="page-link" onclick="if('${data.next}') fetchUsers('${data.next}')">Next</a>
         </li>`;
     }
 
     function updateCharts(users) {
+        if (!users) return;
         const sympCounts = {};
         const ageCounts = {'Under 15': 0, '15-19': 0, '20+': 0, 'Unknown': 0};
 
         users.forEach(u => {
-            u.symptoms.forEach(s => {
-                const type = s.symptom_type.toLowerCase();
-                sympCounts[type] = (sympCounts[type] || 0) + 1;
-            });
+            if (u.symptoms) {
+                u.symptoms.forEach(s => {
+                    const type = s.symptom_type.toLowerCase();
+                    sympCounts[type] = (sympCounts[type] || 0) + 1;
+                });
+            }
             if (!u.age) ageCounts['Unknown']++;
             else if (u.age < 15) ageCounts['Under 15']++;
             else if (u.age <= 19) ageCounts['15-19']++;
@@ -232,7 +225,8 @@
             data: {
                 labels: Object.keys(sympCounts),
                 datasets: [{ label: 'Occurrences', data: Object.values(sympCounts), backgroundColor: '#d81b60' }]
-            }
+            },
+            options: { plugins: { legend: { display: false } } }
         });
 
         const ctxAge = document.getElementById('ageChart').getContext('2d');
@@ -246,24 +240,52 @@
         });
     }
 
-    // Onboarding form handler
+    // ONBOARDING FORM SUBMISSION
     document.getElementById('onboardForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
+        const errorDiv = document.getElementById('formError');
         
+        errorDiv.classList.add('d-none');
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Creating...";
+
+        const emailVal = document.getElementById('newEmail').value;
+        const dobVal = document.getElementById('newDob').value;
+        const passVal = document.getElementById('newPassword').value;
+
         fetch('/api/chv/users/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': getCookie('csrftoken') 
+            },
             body: JSON.stringify({
-                username: document.getElementById('newUsername').value,
-                date_of_birth: document.getElementById('newDob').value,
-                password: document.getElementById('newPassword').value
+                username: emailVal,        // Email serves as the username
+                email: emailVal,           // Standard email field
+                date_of_birth: dobVal,
+                password: passVal,
+                confirm_password: passVal  // Matching backend serializer requirement
             })
         })
-        .then(res => res.json())
+        .then(async res => {
+            const data = await res.json();
+            if (!res.ok) {
+                // Handle validation errors from Django (e.g., user exists)
+                let msg = data.error || data.username || data.email || "Failed to create account.";
+                throw new Error(msg);
+            }
+            return data;
+        })
         .then(() => {
+            alert("Girl onboarded successfully!");
             location.reload();
+        })
+        .catch(err => {
+            errorDiv.innerText = err.message;
+            errorDiv.classList.remove('d-none');
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Create Account";
         });
     });
 </script>
