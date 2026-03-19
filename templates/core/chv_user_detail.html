@@ -150,14 +150,14 @@
                 return response.json();
             })
             .then(data => {
-                document.getElementById('userNameDisplay').innerText = data.username;
-                document.getElementById('editUsername').value = data.username;
+                document.getElementById('userNameDisplay').innerText = data.username || "Unknown User";
+                document.getElementById('editUsername').value = data.username || "";
                 if (data.date_of_birth) {
                     document.getElementById('editDob').value = data.date_of_birth;
                 }
 
                 // ML Insights
-                const report = data.ml_report;
+                const report = data.ml_report || { anemia_risk: 'Low', insights: [] };
                 const riskLevel = report.anemia_risk;
                 const mlCard = document.getElementById('mlCard');
                 const riskDisplay = document.getElementById('riskLevelDisplay');
@@ -167,47 +167,60 @@
 
                 const sugList = document.getElementById('suggestionsList');
                 sugList.innerHTML = '';
-                report.insights.forEach(insight => {
-                    sugList.innerHTML += `<li>${insight}</li>`;
-                });
+                if (report.insights.length > 0) {
+                    report.insights.forEach(insight => {
+                        sugList.innerHTML += `<li>${insight}</li>`;
+                    });
+                } else {
+                    sugList.innerHTML = '<li>No specific insights available.</li>';
+                }
 
                 // Cycles Table
                 const cBody = document.getElementById('cyclesTableBody');
-                cBody.innerHTML = data.cycles.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No cycles logged yet.</td></tr>';
-                data.cycles.forEach(c => {
-                    let badgeClass = c.flow_intensity.toLowerCase() === 'heavy' ? 'bg-danger' : 'bg-secondary';
+                const cycles = data.cycles || [];
+                cBody.innerHTML = cycles.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No cycles logged yet.</td></tr>';
+                cycles.forEach(c => {
+                    let badgeClass = (c.flow_intensity || "").toLowerCase() === 'heavy' ? 'bg-danger' : 'bg-secondary';
                     cBody.innerHTML += `<tr>
-                        <td>${c.start_date}</td>
+                        <td>${c.start_date || 'N/A'}</td>
                         <td>${c.end_date || 'Ongoing'}</td>
-                        <td><span class="badge ${badgeClass}">${c.flow_intensity}</span></td>
+                        <td><span class="badge ${badgeClass}">${c.flow_intensity || 'Medium'}</span></td>
                     </tr>`;
                 });
 
                 // Symptoms Table
                 const sBody = document.getElementById('symptomsTableBody');
-                sBody.innerHTML = data.symptoms.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No symptoms logged yet.</td></tr>';
-                data.symptoms.forEach(s => {
+                const symptoms = data.symptoms || [];
+                sBody.innerHTML = symptoms.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No symptoms logged yet.</td></tr>';
+                symptoms.forEach(s => {
                     let severityColor = s.severity >= 4 ? 'text-danger fw-bold' : 'text-dark';
                     sBody.innerHTML += `<tr>
-                        <td>${s.date}</td>
-                        <td class="text-capitalize">${s.symptom_type}</td>
-                        <td class="${severityColor}">${s.severity} / 5</td>
+                        <td>${s.date || 'N/A'}</td>
+                        <td class="text-capitalize">${s.symptom_type || 'Unknown'}</td>
+                        <td class="${severityColor}">${s.severity || 0} / 5</td>
                     </tr>`;
                 });
 
-                // --- UPDATED: Populate Advice Messages instead of CHV Notes ---
+                // --- FIX: Bulletproofed Advice Section ---
                 const notesList = document.getElementById('notesList');
-                if (!data.advice_messages || data.advice_messages.length === 0) {
+                const adviceMessages = data.advice_messages || [];
+
+                if (adviceMessages.length === 0) {
                     notesList.innerHTML = '<p class="text-muted small">No advice sent to app yet.</p>';
                 } else {
                     notesList.innerHTML = ''; 
-                    data.advice_messages.forEach(item => {
-                        const dateStr = new Date(item.created_at).toLocaleDateString();
+                    adviceMessages.forEach(item => {
+                        // The Core Fix: Check if item and created_at exist before formatting
+                        if (!item) return; 
+                        
+                        const rawDate = item.created_at;
+                        const dateStr = rawDate ? new Date(rawDate).toLocaleDateString() : "No Date";
+                        
                         notesList.innerHTML += `
                             <div class="p-3 bg-white rounded mb-2 border-start border-4 border-primary shadow-sm">
-                                <p class="mb-1 small text-dark">${item.message}</p>
+                                <p class="mb-1 small text-dark">${item.message || "No content"}</p>
                                 <div class="d-flex justify-content-between">
-                                    <span class="text-muted" style="font-size: 0.7rem;">Sent by: ${item.sender_name}</span>
+                                    <span class="text-muted" style="font-size: 0.7rem;">Sent by: ${item.sender_name || "CHV"}</span>
                                     <span class="text-muted" style="font-size: 0.7rem;">${dateStr}</span>
                                 </div>
                             </div>
@@ -218,7 +231,7 @@
             .catch(err => alert(err.message));
     });
 
-    // Handle Note (Advice) Submission
+    // Handle Advice Submission
     document.getElementById('addNoteForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('noteSubmitBtn');
