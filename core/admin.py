@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry, LibraryResource
+from .models import CHVNote, User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry, LibraryResource
 
 # 1. Custom User Admin
 @admin.register(User)
@@ -61,3 +61,10 @@ class LibraryResourceAdmin(admin.ModelAdmin):
     list_filter = ('topic', 'is_published', 'created_at')
     search_fields = ('title', 'content', 'created_by__username')
     readonly_fields = ('id', 'created_at', 'updated_at')
+
+@admin.register(CHVNote)
+class CHVNoteAdmin(admin.ModelAdmin):
+    list_display = ('profile', 'chv', 'last_modified')
+    search_fields = ('profile__anonymous_id', 'chv__user__username', 'note')
+    list_filter = ('last_modified',)
+    readonly_fields = ('id', 'last_modified')
