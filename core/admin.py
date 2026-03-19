@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CHVNote, User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry, LibraryResource
+from .models import CHVNote, User, CHVProfile, AdolescentProfile, CycleEntry, SymptomEntry, LibraryResource, AdviceMessage
 
 # 1. Custom User Admin
 @admin.register(User)
@@ -68,3 +68,10 @@ class CHVNoteAdmin(admin.ModelAdmin):
     search_fields = ('profile__anonymous_id', 'chv__user__username', 'note')
     list_filter = ('last_modified',)
     readonly_fields = ('id', 'last_modified')
+
+@admin.register(AdviceMessage)
+class AdviceMessageAdmin(admin.ModelAdmin):
+    list_display = ('profile', 'sender_type', 'sender_name', 'created_at', 'is_read')
+    search_fields = ('profile__anonymous_id', 'sender_name', 'message')
+    list_filter = ('sender_type', 'is_read', 'created_at')
+    readonly_fields = ('id', 'created_at')

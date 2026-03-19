@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import AdolescentProfile, CHVNote, CHVProfile, CycleEntry, LibraryResource, SymptomEntry
+from .models import AdolescentProfile, AdviceMessage, CHVNote, CHVProfile, CycleEntry, LibraryResource, SymptomEntry
 
 User = get_user_model()
 
@@ -88,3 +88,21 @@ class LibraryResourceSerializer(serializers.ModelSerializer):
             'id', 'topic', 'topic_display', 'title', 'content', 
             'is_published', 'created_by_username', 'created_at', 'updated_at'
         ]
+
+class  AdviceMessageSerializer(serializers.ModelSerializer):
+    sender_name = serializers.CharField(read_only=True)
+    sender_type = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = AdviceMessage
+        fields = ['id', 'message', 'sender_name', 'sender_type', 'created_at', 'is_read']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Dynamically determine sender name and type based on the message's sender
+        if instance.sender_type == 'chv' and instance.profile.chv:
+            data['sender_name'] = instance.profile.chv.user.username
+            data['sender_type'] = 'CHV'
+        else:
+            data['sender_name'] = 'System'
+            data['sender_type'] = 'System'

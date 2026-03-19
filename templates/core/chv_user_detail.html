@@ -55,7 +55,6 @@
         </div>
 
         <div class="col-md-7 mb-4">
-            
             <div class="card p-4 mb-4">
                 <h5 class="fw-bold mb-3 text-muted">Recent Cycle Logs</h5>
                 <div class="table-responsive">
@@ -81,18 +80,17 @@
             </div>
 
             <div class="card p-4 border-left-primary">
-                <h5 class="fw-bold mb-3">CHV Medical Notes & Advice</h5>
+                <h5 class="fw-bold mb-3">Sent Medical Advice</h5>
                 
                 <div id="notesList" class="mb-4">
-                    <p class="text-muted small">Loading notes...</p>
+                    <p class="text-muted small">Loading advice history...</p>
                 </div>
 
                 <form id="addNoteForm">
-                    <textarea id="noteText" class="form-control mb-2" rows="2" placeholder="Write clinical advice or observations here..." required></textarea>
-                    <button type="submit" id="noteSubmitBtn" class="btn btn-sm btn-primary" style="background-color: #d81b60; border: none;">Save Note</button>
+                    <textarea id="noteText" class="form-control mb-2" rows="2" placeholder="Send health advice or instructions to her mobile app..." required></textarea>
+                    <button type="submit" id="noteSubmitBtn" class="btn btn-sm btn-primary" style="background-color: #d81b60; border: none;">Send Advice to App</button>
                 </form>
             </div>
-
         </div>
     </div>
 </div>
@@ -130,7 +128,6 @@
 <script>
     const anonymousId = "{{ anonymous_id }}";
 
-    // --- CSRF Token Helper ---
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -146,7 +143,6 @@
         return cookieValue;
     }
 
-    // --- Fetch User Data on Load ---
     document.addEventListener('DOMContentLoaded', () => {
         fetch(`/api/chv/users/${anonymousId}/`)
             .then(response => {
@@ -154,26 +150,20 @@
                 return response.json();
             })
             .then(data => {
-                // Populate Header
                 document.getElementById('userNameDisplay').innerText = data.username;
-
-                // Pre-fill the edit modal with current data
                 document.getElementById('editUsername').value = data.username;
                 if (data.date_of_birth) {
                     document.getElementById('editDob').value = data.date_of_birth;
                 }
 
-                // Process ML Report
+                // ML Insights
                 const report = data.ml_report;
                 const riskLevel = report.anemia_risk;
                 const mlCard = document.getElementById('mlCard');
                 const riskDisplay = document.getElementById('riskLevelDisplay');
                 
-                mlCard.classList.add(`risk-${riskLevel}`);
+                mlCard.className = `card p-4 h-100 risk-${riskLevel}`;
                 riskDisplay.innerText = riskLevel;
-                if(riskLevel === 'High') riskDisplay.classList.add('text-danger');
-                if(riskLevel === 'Moderate') riskDisplay.classList.add('text-warning');
-                if(riskLevel === 'Low') riskDisplay.classList.add('text-success');
 
                 const sugList = document.getElementById('suggestionsList');
                 sugList.innerHTML = '';
@@ -181,9 +171,9 @@
                     sugList.innerHTML += `<li>${insight}</li>`;
                 });
 
-                // Populate Cycles Table
+                // Cycles Table
                 const cBody = document.getElementById('cyclesTableBody');
-                if (data.cycles.length === 0) cBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No cycles logged yet.</td></tr>';
+                cBody.innerHTML = data.cycles.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No cycles logged yet.</td></tr>';
                 data.cycles.forEach(c => {
                     let badgeClass = c.flow_intensity.toLowerCase() === 'heavy' ? 'bg-danger' : 'bg-secondary';
                     cBody.innerHTML += `<tr>
@@ -193,9 +183,9 @@
                     </tr>`;
                 });
 
-                // Populate Symptoms Table
+                // Symptoms Table
                 const sBody = document.getElementById('symptomsTableBody');
-                if (data.symptoms.length === 0) sBody.innerHTML = '<tr><td colspan="3" class="text-muted text-center">No symptoms logged yet.</td></tr>';
+                sBody.innerHTML = data.symptoms.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No symptoms logged yet.</td></tr>';
                 data.symptoms.forEach(s => {
                     let severityColor = s.severity >= 4 ? 'text-danger fw-bold' : 'text-dark';
                     sBody.innerHTML += `<tr>
@@ -205,35 +195,36 @@
                     </tr>`;
                 });
 
-                // Populate Notes
+                // --- UPDATED: Populate Advice Messages instead of CHV Notes ---
                 const notesList = document.getElementById('notesList');
-                if (data.chv_notes.length === 0) {
-                    notesList.innerHTML = '<p class="text-muted small">No notes added yet.</p>';
+                if (!data.advice_messages || data.advice_messages.length === 0) {
+                    notesList.innerHTML = '<p class="text-muted small">No advice sent to app yet.</p>';
                 } else {
                     notesList.innerHTML = ''; 
-                    data.chv_notes.forEach(note => {
-                        const dateStr = new Date(note.last_modified).toLocaleDateString();
+                    data.advice_messages.forEach(item => {
+                        const dateStr = new Date(item.created_at).toLocaleDateString();
                         notesList.innerHTML += `
-                            <div class="p-3 bg-light rounded mb-2 border">
-                                <p class="mb-1 small">${note.note}</p>
-                                <span class="text-muted" style="font-size: 0.75rem;">Added: ${dateStr}</span>
+                            <div class="p-3 bg-white rounded mb-2 border-start border-4 border-primary shadow-sm">
+                                <p class="mb-1 small text-dark">${item.message}</p>
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted" style="font-size: 0.7rem;">Sent by: ${item.sender_name}</span>
+                                    <span class="text-muted" style="font-size: 0.7rem;">${dateStr}</span>
+                                </div>
                             </div>
                         `;
                     });
                 }
             })
-            .catch(err => {
-                alert(err.message);
-            });
+            .catch(err => alert(err.message));
     });
 
-    // --- Handle Note Submission ---
+    // Handle Note (Advice) Submission
     document.getElementById('addNoteForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('noteSubmitBtn');
         const text = document.getElementById('noteText').value;
         btn.disabled = true;
-        btn.innerText = "Saving...";
+        btn.innerText = "Sending to Mobile App...";
 
         fetch(`/api/chv/users/${anonymousId}/add_note/`, {
             method: 'POST',
@@ -244,25 +235,23 @@
             body: JSON.stringify({ note: text })
         })
         .then(res => {
-            if (!res.ok) throw new Error("Failed to add note.");
+            if (!res.ok) throw new Error("Failed to send advice.");
             location.reload(); 
         })
         .catch(err => {
             alert(err.message);
             btn.disabled = false;
-            btn.innerText = "Save Note";
+            btn.innerText = "Send Advice to App";
         });
     });
 
-    // --- Handle Profile Editing ---
+    // Profile Edit Handler
     document.getElementById('editProfileForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('editSubmitBtn');
         const errorDiv = document.getElementById('editFormError');
-        
         btn.disabled = true;
         btn.innerText = "Saving...";
-        errorDiv.classList.add('d-none');
 
         fetch(`/api/chv/users/${anonymousId}/update_details/`, {
             method: 'PATCH',
@@ -278,9 +267,8 @@
         .then(async res => {
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.error || "Failed to update profile.");
+                throw new Error(errData.error || "Update failed.");
             }
-            // Reload page to reflect changes instantly
             location.reload(); 
         })
         .catch(err => {

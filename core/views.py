@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from dateutil.parser import parse
 from django.contrib.admin.views.decorators import staff_member_required
-from .models import AdolescentProfile, CHVProfile, CycleEntry, LibraryResource, SymptomEntry, User
+from .models import AdolescentProfile, CHVProfile, CycleEntry, LibraryResource, SymptomEntry, User, AdviceMessage, CHVNote
 from .serializers import (
     CHVProfileSerializer,
     LibraryResourceSerializer,
@@ -22,7 +22,8 @@ from .serializers import (
     CHVOnboardUserSerializer, 
     AdolescentProfileSerializer,
     CycleEntrySerializer,
-    SymptomEntrySerializer
+    SymptomEntrySerializer,
+    AdviceMessageSerializer
 )
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
@@ -273,29 +274,39 @@ class CHVManagedUsersViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         data = serializer.data
 
-        # Fetch active records
+        # Fetch data for ML
         cycles = instance.cycles.filter(is_deleted=False).order_by('-start_date')
         symptoms = instance.symptoms.filter(is_deleted=False).order_by('-date')
         
-        # Run the analysis
-        ml_report = analyze_health_data(cycles, symptoms)
+        # Run ML Analysis
+        data['ml_report'] = analyze_health_data(cycles, symptoms)
         
-        # Append report to the JSON response
-        data['ml_report'] = ml_report
+        # REPLACE chv_notes with advice_messages in the response
+        # This ensures the Web Dashboard sees what the Mobile App sees       
+        advice = instance.advice_messages.all().order_by('-created_at')
+        data['advice_messages'] = AdviceMessageSerializer(advice, many=True).data
+        
         return Response(data)
-    
-    # This custom action to handle POST requests for new notes
+
+    # 2. Update the add_note action to save to the AdviceMessage table
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_note(self, request, anonymous_id=None):
         profile = self.get_object()
         note_text = request.data.get('note')
         
         if not note_text:
-            return Response({"error": "Note cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Advice text cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
             
-        from .models import CHVNote
-        CHVNote.objects.create(profile=profile, chv=request.user.chv_profile, note=note_text)
-        return Response({"status": "Note successfully added!"}, status=status.HTTP_201_CREATED)
+        # We create an AdviceMessage instead of a CHVNote
+        # This makes it instantly visible on the Mobile App!
+        AdviceMessage.objects.create(
+            profile=profile,
+            sender_type='chw',
+            sender_name=f"CHV {request.user.username}", # Shows the CHV's name in the app
+            message=note_text
+        )
+        
+        return Response({"status": "Advice successfully sent to user!"}, status=status.HTTP_201_CREATED)
     
     def destroy(self, request, *args, **kwargs):
         if not request.user.is_staff:
