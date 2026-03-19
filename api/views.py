@@ -317,7 +317,7 @@ class AdviceMessageViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return AdviceMessage.objects.filter(
-            profile=self.request.user.adolescent_profile
+            profile=self.request.user     
         ).order_by('created_at')
 
 
