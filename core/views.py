@@ -284,20 +284,28 @@ class CHVManagedUsersViewSet(viewsets.ModelViewSet):
         data['advice_messages'] = AdviceMessageSerializer(advice, many=True).data
         return Response(data)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def add_note(self, request, anonymous_id=None):
         profile = self.get_object()
+        
+        # RULE: Only one active advice allowed per girl
+        if profile.advice_messages.exists():
+            return Response(
+                {"error": "An advice message already exists. Please edit or delete it first."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         note_text = request.data.get('note')
         if not note_text:
-            return Response({"error": "Note cannot be empty"}, status=400)
-
+            return Response({"error": "Note cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
+            
         AdviceMessage.objects.create(
             profile=profile,
             sender_type='chw',
             sender_name=f"CHV {request.user.username}",
             message=note_text
         )
-        return Response({"status": "Success"}, status=201)
+        return Response({"status": "Advice successfully created!"}, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['patch'], url_path='edit-advice/(?P<advice_id>[^/.]+)')
     def edit_advice(self, request, advice_id=None):
