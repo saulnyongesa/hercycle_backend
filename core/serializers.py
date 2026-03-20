@@ -89,7 +89,7 @@ class LibraryResourceSerializer(serializers.ModelSerializer):
             'is_published', 'created_by_username', 'created_at', 'updated_at'
         ]
 
-class  AdviceMessageSerializer(serializers.ModelSerializer):
+class AdviceMessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(read_only=True)
     sender_type = serializers.CharField(read_only=True)
 
@@ -99,10 +99,12 @@ class  AdviceMessageSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        # Dynamically determine sender name and type based on the message's sender
-        if instance.sender_type == 'chv' and instance.profile.chv:
-            data['sender_name'] = instance.profile.chv.user.username
+        # Fix: Ensure we return the data and handle sender logic
+        if instance.sender_type == 'chv':
+            # Try to get the CHV's name, otherwise use the saved sender_name
+            data['sender_name'] = instance.sender_name or "Community Health Volunteer"
             data['sender_type'] = 'CHV'
         else:
-            data['sender_name'] = 'System'
-            data['sender_type'] = 'System'
+            data['sender_name'] = instance.sender_name or "System/AI"
+            data['sender_type'] = 'AI'
+        return data

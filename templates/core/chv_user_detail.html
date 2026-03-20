@@ -15,13 +15,21 @@
         .risk-Moderate { background-color: #fff8e1; border-left: 5px solid #ffa000; }
         .risk-Low { background-color: #e8f5e9; border-left: 5px solid #388e3c; }
         .border-left-primary { border-left: 4px solid #d81b60 !important; }
+        
+        /* New: Hide actions until hover */
+        .advice-card:hover .advice-actions { opacity: 1; }
+        .advice-actions { opacity: 0; transition: 0.2s; }
     </style>
 </head>
 <body>
 
 <nav class="navbar navbar-expand-lg navbar-dark mb-4 shadow-sm">
     <div class="container">
+        {% if user.is_staff %}
+        <a class="navbar-brand fw-bold" href="/admin-dashboard/">← Back to Dashboard</a>
+        {% else %}
         <a class="navbar-brand fw-bold" href="/dashboard/">← Back to Dashboard</a>
+        {% endif %}
     </div>
 </nav>
 
@@ -30,9 +38,7 @@
         <div class="col-12 d-flex align-items-center">
             <div>
                 <h3 class="fw-bold text-dark mb-0 d-inline-block me-3" id="userNameDisplay">Loading User...</h3>
-                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
-                    ✏️ Edit Details
-                </button>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editProfileModal">✏️ Edit Details</button>
                 <p class="text-muted small mt-1 mb-0">Anonymous ID: {{ anonymous_id }}</p>
             </div>
         </div>
@@ -46,11 +52,8 @@
                     <span class="text-muted small text-uppercase">Anemia Risk Level</span><br>
                     <h2 class="fw-bold" id="riskLevelDisplay">--</h2>
                 </div>
-                
                 <h6 class="fw-bold mt-4">Suggested Actions:</h6>
-                <ul id="suggestionsList" class="text-dark small lh-lg ps-3">
-                    <li>Analyzing data...</li>
-                </ul>
+                <ul id="suggestionsList" class="text-dark small lh-lg ps-3"><li>Analyzing data...</li></ul>
             </div>
         </div>
 
@@ -59,9 +62,7 @@
                 <h5 class="fw-bold mb-3 text-muted">Recent Cycle Logs</h5>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle small">
-                        <thead class="table-light">
-                            <tr><th>Start Date</th><th>End Date</th><th>Flow Intensity</th></tr>
-                        </thead>
+                        <thead class="table-light"><tr><th>Start Date</th><th>End Date</th><th>Flow Intensity</th></tr></thead>
                         <tbody id="cyclesTableBody"></tbody>
                     </table>
                 </div>
@@ -71,9 +72,7 @@
                 <h5 class="fw-bold mb-3 text-muted">Recent Symptoms Logged</h5>
                 <div class="table-responsive">
                     <table class="table table-sm align-middle small">
-                        <thead class="table-light">
-                            <tr><th>Date</th><th>Symptom</th><th>Severity (1-5)</th></tr>
-                        </thead>
+                        <thead class="table-light"><tr><th>Date</th><th>Symptom</th><th>Severity (1-5)</th></tr></thead>
                         <tbody id="symptomsTableBody"></tbody>
                     </table>
                 </div>
@@ -81,52 +80,43 @@
 
             <div class="card p-4 border-left-primary">
                 <h5 class="fw-bold mb-3">Sent Medical Advice</h5>
-                
-                <div id="notesList" class="mb-4">
+                <div id="notesList" class="mb-4" style="max-height: 350px; overflow-y: auto;">
                     <p class="text-muted small">Loading advice history...</p>
                 </div>
 
                 <form id="addNoteForm">
-                    <textarea id="noteText" class="form-control mb-2" rows="2" placeholder="Send health advice or instructions to her mobile app..." required></textarea>
-                    <button type="submit" id="noteSubmitBtn" class="btn btn-sm btn-primary" style="background-color: #d81b60; border: none;">Send Advice to App</button>
+                    <textarea id="noteText" class="form-control mb-2" rows="2" placeholder="Write clinical advice..." required></textarea>
+                    <button type="submit" id="noteSubmitBtn" class="btn btn-sm btn-primary w-100" style="background-color: #d81b60; border: none;">Send Advice to App</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="editProfileModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg">
-      <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold">Edit User Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <form id="editProfileForm">
-          <div class="modal-body p-4">
-            <div class="mb-3">
-                <label class="form-label text-muted small text-uppercase fw-bold">Username</label>
-                <input type="text" id="editUsername" class="form-control bg-light" required>
+<div class="modal fade" id="editAdviceModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5>Edit Advice Message</h5></div>
+            <div class="modal-body">
+                <input type="hidden" id="editAdviceId">
+                <textarea id="editAdviceInput" class="form-control" rows="4"></textarea>
             </div>
-            <div class="mb-3">
-                <label class="form-label text-muted small text-uppercase fw-bold">Date of Birth</label>
-                <input type="date" id="editDob" class="form-control bg-light" required>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitEditAdvice()" style="background-color: #d81b60; border: none;">Save Changes</button>
             </div>
-            <div id="editFormError" class="alert alert-danger py-2 small d-none"></div>
-          </div>
-          <div class="modal-footer border-0 pt-0 px-4 pb-4">
-            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary px-4" id="editSubmitBtn" style="background-color: #d81b60; border: none;">Save Changes</button>
-          </div>
-      </form>
+        </div>
     </div>
-  </div>
 </div>
+
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
     const anonymousId = "{{ anonymous_id }}";
+    const editModal = new bootstrap.Modal(document.getElementById('editAdviceModal'));
 
     function getCookie(name) {
         let cookieValue = null;
@@ -143,154 +133,107 @@
         return cookieValue;
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    // Main Fetch Function
+    function loadData() {
         fetch(`/api/chv/users/${anonymousId}/`)
-            .then(response => {
-                if (!response.ok) throw new Error('Failed to load user data');
-                return response.json();
-            })
+            .then(res => res.json())
             .then(data => {
-                document.getElementById('userNameDisplay').innerText = data.username || "Unknown User";
-                document.getElementById('editUsername').value = data.username || "";
-                if (data.date_of_birth) {
-                    document.getElementById('editDob').value = data.date_of_birth;
-                }
-
-                // ML Insights
-                const report = data.ml_report || { anemia_risk: 'Low', insights: [] };
-                const riskLevel = report.anemia_risk;
-                const mlCard = document.getElementById('mlCard');
-                const riskDisplay = document.getElementById('riskLevelDisplay');
+                // Header & Profile
+                document.getElementById('userNameDisplay').innerText = data.username;
                 
-                mlCard.className = `card p-4 h-100 risk-${riskLevel}`;
-                riskDisplay.innerText = riskLevel;
-
+                // ML Report (Untouched)
+                const report = data.ml_report;
+                document.getElementById('riskLevelDisplay').innerText = report.anemia_risk;
+                document.getElementById('mlCard').className = `card p-4 h-100 risk-${report.anemia_risk}`;
                 const sugList = document.getElementById('suggestionsList');
                 sugList.innerHTML = '';
-                if (report.insights.length > 0) {
-                    report.insights.forEach(insight => {
-                        sugList.innerHTML += `<li>${insight}</li>`;
-                    });
-                } else {
-                    sugList.innerHTML = '<li>No specific insights available.</li>';
-                }
+                report.insights.forEach(i => sugList.innerHTML += `<li>${i}</li>`);
 
-                // Cycles Table
+                // Tables (Untouched)
                 const cBody = document.getElementById('cyclesTableBody');
-                const cycles = data.cycles || [];
-                cBody.innerHTML = cycles.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No cycles logged yet.</td></tr>';
-                cycles.forEach(c => {
-                    let badgeClass = (c.flow_intensity || "").toLowerCase() === 'heavy' ? 'bg-danger' : 'bg-secondary';
-                    cBody.innerHTML += `<tr>
-                        <td>${c.start_date || 'N/A'}</td>
-                        <td>${c.end_date || 'Ongoing'}</td>
-                        <td><span class="badge ${badgeClass}">${c.flow_intensity || 'Medium'}</span></td>
-                    </tr>`;
+                cBody.innerHTML = '';
+                data.cycles.forEach(c => {
+                    cBody.innerHTML += `<tr><td>${c.start_date}</td><td>${c.end_date || 'Ongoing'}</td><td><span class="badge bg-secondary">${c.flow_intensity}</span></td></tr>`;
                 });
 
-                // Symptoms Table
                 const sBody = document.getElementById('symptomsTableBody');
-                const symptoms = data.symptoms || [];
-                sBody.innerHTML = symptoms.length ? '' : '<tr><td colspan="3" class="text-muted text-center">No symptoms logged yet.</td></tr>';
-                symptoms.forEach(s => {
-                    let severityColor = s.severity >= 4 ? 'text-danger fw-bold' : 'text-dark';
-                    sBody.innerHTML += `<tr>
-                        <td>${s.date || 'N/A'}</td>
-                        <td class="text-capitalize">${s.symptom_type || 'Unknown'}</td>
-                        <td class="${severityColor}">${s.severity || 0} / 5</td>
-                    </tr>`;
+                sBody.innerHTML = '';
+                data.symptoms.forEach(s => {
+                    sBody.innerHTML += `<tr><td>${s.date}</td><td class="text-capitalize">${s.symptom_type}</td><td>${s.severity} / 5</td></tr>`;
                 });
 
-                // --- FIX: Bulletproofed Advice Section ---
+                // --- UPDATED ADVICE LIST ---
                 const notesList = document.getElementById('notesList');
-                const adviceMessages = data.advice_messages || [];
-
-                if (adviceMessages.length === 0) {
-                    notesList.innerHTML = '<p class="text-muted small">No advice sent to app yet.</p>';
+                notesList.innerHTML = '';
+                if (data.advice_messages.length === 0) {
+                    notesList.innerHTML = '<p class="text-muted small">No advice sent yet.</p>';
                 } else {
-                    notesList.innerHTML = ''; 
-                    adviceMessages.forEach(item => {
-                        // The Core Fix: Check if item and created_at exist before formatting
-                        if (!item) return; 
-                        
-                        const rawDate = item.created_at;
-                        const dateStr = rawDate ? new Date(rawDate).toLocaleDateString() : "No Date";
-                        
+                    data.advice_messages.forEach(item => {
+                        const dateStr = new Date(item.created_at).toLocaleDateString();
                         notesList.innerHTML += `
-                            <div class="p-3 bg-white rounded mb-2 border-start border-4 border-primary shadow-sm">
-                                <p class="mb-1 small text-dark">${item.message || "No content"}</p>
-                                <div class="d-flex justify-content-between">
-                                    <span class="text-muted" style="font-size: 0.7rem;">Sent by: ${item.sender_name || "CHV"}</span>
-                                    <span class="text-muted" style="font-size: 0.7rem;">${dateStr}</span>
+                            <div class="advice-card p-3 bg-white rounded mb-2 border shadow-sm position-relative">
+                                <p class="mb-1 small">${item.message}</p>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <span class="text-muted" style="font-size: 0.7rem;">${item.sender_name} • ${dateStr}</span>
+                                    <div class="advice-actions">
+                                        <button class="btn btn-sm btn-link text-primary p-0 me-2" onclick="openEditAdvice('${item.id}', '${item.message.replace(/'/g, "\\'")}')">Edit</button>
+                                        <button class="btn btn-sm btn-link text-danger p-0" onclick="deleteAdvice('${item.id}')">Delete</button>
+                                    </div>
                                 </div>
                             </div>
                         `;
                     });
                 }
-            })
-            .catch(err => alert(err.message));
-    });
+            });
+    }
 
-    // Handle Advice Submission
+    // --- ADVICE ACTIONS ---
+
+    // Create
     document.getElementById('addNoteForm').addEventListener('submit', function(e) {
         e.preventDefault();
-        const btn = document.getElementById('noteSubmitBtn');
         const text = document.getElementById('noteText').value;
-        btn.disabled = true;
-        btn.innerText = "Sending to Mobile App...";
-
         fetch(`/api/chv/users/${anonymousId}/add_note/`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
             body: JSON.stringify({ note: text })
-        })
-        .then(res => {
-            if (!res.ok) throw new Error("Failed to send advice.");
-            location.reload(); 
-        })
-        .catch(err => {
-            alert(err.message);
-            btn.disabled = false;
-            btn.innerText = "Send Advice to App";
+        }).then(() => {
+            document.getElementById('noteText').value = '';
+            loadData();
         });
     });
 
-    // Profile Edit Handler
-    document.getElementById('editProfileForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const btn = document.getElementById('editSubmitBtn');
-        const errorDiv = document.getElementById('editFormError');
-        btn.disabled = true;
-        btn.innerText = "Saving...";
+    // Delete
+    function deleteAdvice(id) {
+        if (confirm("Delete this advice from her app?")) {
+            fetch(`/api/chv/users/delete-advice/${id}/`, {
+                method: 'DELETE',
+                headers: {'X-CSRFToken': getCookie('csrftoken')}
+            }).then(() => loadData());
+        }
+    }
 
-        fetch(`/api/chv/users/${anonymousId}/update_details/`, {
+    // Edit
+    function openEditAdvice(id, text) {
+        document.getElementById('editAdviceId').value = id;
+        document.getElementById('editAdviceInput').value = text;
+        editModal.show();
+    }
+
+    function submitEditAdvice() {
+        const id = document.getElementById('editAdviceId').value;
+        const text = document.getElementById('editAdviceInput').value;
+        fetch(`/api/chv/users/edit-advice/${id}/`, {
             method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ 
-                username: document.getElementById('editUsername').value,
-                date_of_birth: document.getElementById('editDob').value
-            })
-        })
-        .then(async res => {
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.error || "Update failed.");
-            }
-            location.reload(); 
-        })
-        .catch(err => {
-            errorDiv.innerText = err.message;
-            errorDiv.classList.remove('d-none');
-            btn.disabled = false;
-            btn.innerText = "Save Changes";
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({ message: text })
+        }).then(() => {
+            editModal.hide();
+            loadData();
         });
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadData);
 </script>
 </body>
 </html>

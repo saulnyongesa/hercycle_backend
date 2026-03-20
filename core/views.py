@@ -274,39 +274,45 @@ class CHVManagedUsersViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
         data = serializer.data
 
-        # Fetch data for ML
+        # Standard Health Data (Untouched)
         cycles = instance.cycles.filter(is_deleted=False).order_by('-start_date')
         symptoms = instance.symptoms.filter(is_deleted=False).order_by('-date')
-        
-        # Run ML Analysis
         data['ml_report'] = analyze_health_data(cycles, symptoms)
         
-        # REPLACE chv_notes with advice_messages in the response
-        # This ensures the Web Dashboard sees what the Mobile App sees       
+        # Advice Section (Updated to use the fixed Serializer)
         advice = instance.advice_messages.all().order_by('-created_at')
         data['advice_messages'] = AdviceMessageSerializer(advice, many=True).data
-        
         return Response(data)
 
-    # 2. Update the add_note action to save to the AdviceMessage table
-    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['post'])
     def add_note(self, request, anonymous_id=None):
         profile = self.get_object()
         note_text = request.data.get('note')
-        
         if not note_text:
-            return Response({"error": "Advice text cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
-            
-        # We create an AdviceMessage instead of a CHVNote
-        # This makes it instantly visible on the Mobile App!
+            return Response({"error": "Note cannot be empty"}, status=400)
+
         AdviceMessage.objects.create(
             profile=profile,
             sender_type='chw',
-            sender_name=f"CHV {request.user.username}", # Shows the CHV's name in the app
+            sender_name=f"CHV {request.user.username}",
             message=note_text
         )
+        return Response({"status": "Success"}, status=201)
+
+    @action(detail=False, methods=['patch'], url_path='edit-advice/(?P<advice_id>[^/.]+)')
+    def edit_advice(self, request, advice_id=None):
+        advice = AdviceMessage.objects.filter(id=advice_id).first()
+        if not advice:
+            return Response({"error": "Advice not found"}, status=404)
         
-        return Response({"status": "Advice successfully sent to user!"}, status=status.HTTP_201_CREATED)
+        advice.message = request.data.get('message', advice.message)
+        advice.save()
+        return Response({"status": "Updated"})
+
+    @action(detail=False, methods=['delete'], url_path='delete-advice/(?P<advice_id>[^/.]+)')
+    def delete_advice(self, request, advice_id=None):
+        AdviceMessage.objects.filter(id=advice_id).delete()
+        return Response(status=204)
     
     def destroy(self, request, *args, **kwargs):
         if not request.user.is_staff:
