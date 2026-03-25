@@ -82,8 +82,8 @@ def chv_login_action(request):
                     refresh = RefreshToken.for_user(user)
                     return JsonResponse({
                         "success": True, 
-                        # IMPORTANT: Change '/user-app/' to the actual URL where user_app.html is served!
-                        "redirect": "/user-app/", 
+                        # IMPORTANT: Change '/user/' to the actual URL where user_app.html is served!
+                        "redirect": "/user/", 
                         "tokens": {
                             "access": str(refresh.access_token),
                             "refresh": str(refresh)
