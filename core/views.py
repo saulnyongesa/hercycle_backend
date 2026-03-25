@@ -128,7 +128,7 @@ def chv_logout_action(request):
     logout(request)
     return redirect('chv-landing')
 # --- WEB DASHBOARD VIEW ---
-@login_required
+@login_required(redirect_field_name='chv-landing')
 def chv_dashboard_view(request):
     if not hasattr(request.user, 'chv_profile') or not request.user.chv_profile.is_approved:
         raise PermissionDenied("You are not an approved Community Health Volunteer.")
@@ -187,7 +187,7 @@ class AdminCHVManagementViewSet(viewsets.ModelViewSet):
         user.delete() # This deletes the profile too via CASCADE
         return Response(status=status.HTTP_204_NO_CONTENT)
 # --- 1. CSV EXPORT VIEW ---
-@login_required
+@login_required(redirect_field_name='chv-landing')
 def export_dashboard_csv(request):
     """Generates a unified CSV with Summary Stats at the top, and User Data below."""
     if not hasattr(request.user, 'chv_profile'):
@@ -423,7 +423,7 @@ class SyncDataView(APIView):
     
 
 # --- HTML View ---
-@login_required(login_url='chv-landing')
+@login_required(redirect_field_name='chv-landing')
 def library_view(request):
     """
     Stand-alone Library Management Page.
