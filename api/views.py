@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Count
@@ -435,3 +436,10 @@ class SyncDataView(APIView):
             except model_class.DoesNotExist:
                 record.pop('last_modified', None)
                 model_class.objects.create(profile=profile, **record)
+
+def user_spa_view(request):
+    """
+    Serves the Single Page Application for the Adolescent Web App.
+    All logic, routing, and auth is handled client-side via JS.
+    """
+    return render(request, 'core/user_app.html')
