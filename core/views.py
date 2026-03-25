@@ -1,7 +1,7 @@
 import csv
 from datetime import date
 import json
-
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import action
 from django.core.exceptions import PermissionDenied
@@ -62,8 +62,8 @@ def chv_login_action(request):
                     })
 
                 # 2. Check for CHV Access
-                if hasattr(user, 'chv_profile'):
-                    if user.chv_profile.is_approved:
+                if getattr(user, 'is_chv', False) or hasattr(user, 'chv_profile'):
+                    if hasattr(user, 'chv_profile') and user.chv_profile.is_approved:
                         login(request, user)
                         return JsonResponse({
                             "success": True, 
@@ -75,10 +75,21 @@ def chv_login_action(request):
                             "error": "Account pending admin approval. Please wait to be vetted."
                         }, status=403)
                 
-                # 3. Deny if user is an Adolescent (they use the Mobile App only)
-                return JsonResponse({
-                    "error": "Access denied. Please use the HerCycle Mobile App."
-                }, status=403)
+                # 3. Check for Adolescent/Woman Access
+                if getattr(user, 'is_adolescent', False) or hasattr(user, 'adolescent_profile'):
+                    # The User App relies on JWT tokens (localStorage) not session cookies.
+                    # Generate tokens here so the frontend JS can catch them and redirect cleanly.
+                    refresh = RefreshToken.for_user(user)
+                    return JsonResponse({
+                        "success": True, 
+                        # IMPORTANT: Change '/user-app/' to the actual URL where user_app.html is served!
+                        "redirect": "/user-app/", 
+                        "tokens": {
+                            "access": str(refresh.access_token),
+                            "refresh": str(refresh)
+                        },
+                        "message": "Redirecting to your personal health app..."
+                    })
 
             return JsonResponse({"error": "Invalid username or password."}, status=401)
             

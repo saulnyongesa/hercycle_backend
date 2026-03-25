@@ -18,16 +18,21 @@
         .view-section { display: none; }
         
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
-        .nav-item-bottom { flex: 1; text-align: center; padding: 12px 0; color: #6c757d; text-decoration: none; font-weight: 500;}
+        .nav-item-bottom { flex: 1; text-align: center; padding: 10px 0; color: #6c757d; text-decoration: none; font-weight: 500;}
         .nav-item-bottom.active { color: var(--hc-pink); border-top: 3px solid var(--hc-pink); }
-        .main-content { padding-bottom: 80px; }
+        .main-content { padding-bottom: 90px; }
         
         .hero-bg { background: linear-gradient(135deg, var(--hc-pink), #ff4081); color: white; border-radius: 0 0 30px 30px; padding: 40px 20px; }
-        .article-content { line-height: 1.7; font-size: 1.05rem; }
-        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; }
-        
-        /* Notification Dot */
         .notif-badge { position: absolute; top: 8px; right: 8px; padding: 4px; border-radius: 50%; background: #ffc107; display: none; }
+        
+        /* Custom UI Pills */
+        .symptom-pill { border: 1px solid #ced4da; color: #495057; border-radius: 20px; padding: 6px 14px; font-size: 0.9rem; cursor: pointer; transition: 0.2s; }
+        .btn-check:checked + .symptom-pill { background-color: var(--hc-pink); border-color: var(--hc-pink); color: white; font-weight: bold; }
+        
+        /* Action Card specific */
+        .action-card { cursor: pointer; transition: background-color 0.3s; }
+        .action-card:active { transform: scale(0.98); }
+        .bg-active-cycle { background-color: #fff0f0 !important; border: 1px solid #ffcdd2 !important; }
     </style>
 </head>
 <body>
@@ -81,29 +86,15 @@
 
             <div class="row g-3 mb-4">
                 <div class="col-6">
-                    <div class="card p-3 text-center h-100 shadow-sm" style="cursor: pointer;" onclick="toggleCycle()">
+                    <div class="card p-3 text-center h-100 shadow-sm action-card" id="cycleActionCard" onclick="handleCycleClick()">
                         <h1 class="mb-2" id="cycleIcon">💧</h1>
                         <h6 class="fw-bold mb-0" id="cycleActionText">Start Period</h6>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="card p-3 text-center h-100 shadow-sm" style="cursor: pointer;" onclick="window.location.hash='#log-symptom'">
+                    <div class="card p-3 text-center h-100 shadow-sm action-card" onclick="window.location.hash='#log-symptom'">
                         <h1 class="mb-2">🤕</h1>
                         <h6 class="fw-bold mb-0">Log Symptom</h6>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card p-4 mb-4">
-                <h6 class="fw-bold mb-3">Your Averages</h6>
-                <div class="d-flex justify-content-between text-center">
-                    <div>
-                        <h3 class="fw-bold text-primary mb-0" id="statCycle">--</h3>
-                        <span class="small text-muted">Cycle Days</span>
-                    </div>
-                    <div>
-                        <h3 class="fw-bold text-primary mb-0" id="statPeriod">--</h3>
-                        <span class="small text-muted">Period Days</span>
                     </div>
                 </div>
             </div>
@@ -114,7 +105,6 @@
         <h3 class="fw-bold mb-4">Health Library 📚</h3>
         <div id="articleList"><p class="text-muted text-center py-5">Loading articles...</p></div>
     </div>
-
     <div id="article-view" class="view-section main-content bg-white min-vh-100">
         <div class="sticky-top bg-white px-3 py-3 border-bottom shadow-sm d-flex align-items-center z-3">
             <button class="btn btn-link text-dark text-decoration-none p-0 me-3 fw-bold" onclick="window.location.hash='#library'" style="font-size: 1.1rem;">← Back</button>
@@ -123,39 +113,139 @@
         <div class="container mt-4 pb-5">
             <span class="badge bg-light text-dark mb-2 border" id="readCategory">Category</span>
             <h2 class="fw-bold mb-3" id="readTitle">Title</h2>
-            <div class="d-flex align-items-center mb-4 text-muted small border-bottom pb-3">
-                <span id="readAuthor" class="me-3 fw-bold">Author</span><span id="readDate">Date</span>
-            </div>
-            <div id="readContent" class="article-content pb-5"></div>
+            <div id="readContent" class="pb-5 mt-4" style="line-height: 1.6; font-size: 1.05rem;"></div>
+        </div>
+    </div>
+
+    <div id="history-view" class="view-section main-content container mt-4">
+        <h3 class="fw-bold mb-2">Cycle History 📝</h3>
+        <p class="text-muted small mb-4">Your symptoms grouped by period.</p>
+        <div id="historyList"><p class="text-center text-muted py-5">Loading logs...</p></div>
+    </div>
+
+    <div id="profile-view" class="view-section main-content container mt-4">
+        <h3 class="fw-bold mb-4">Profile Settings 👤</h3>
+        <div class="card p-4 mb-4 shadow-sm">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Personal Details</h6>
+            <form id="profileForm">
+                <label class="small text-muted mb-1">Username</label>
+                <input type="text" id="profUser" class="form-control mb-3" required>
+                <label class="small text-muted mb-1">Email</label>
+                <input type="email" id="profEmail" class="form-control mb-3" required>
+                <label class="small text-muted mb-1">Date of Birth</label>
+                <input type="date" id="profDob" class="form-control mb-4" required>
+                <button type="submit" class="btn btn-sm btn-primary w-100">Save Details</button>
+            </form>
+        </div>
+        <div class="card p-4 shadow-sm">
+            <h6 class="fw-bold mb-3 border-bottom pb-2">Change Password</h6>
+            <form id="passwordForm">
+                <input type="password" id="passOld" class="form-control mb-3" placeholder="Current Password" required>
+                <input type="password" id="passNew" class="form-control mb-3" placeholder="New Password" required>
+                <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Update Password</button>
+            </form>
         </div>
     </div>
 
     <div class="bottom-nav d-flex" id="bottomNav">
-        <a href="#dashboard" id="nav-dashboard" class="nav-item-bottom active"><div style="font-size: 1.2rem;">🏠</div><span class="small">Home</span></a>
-        <a href="#library" id="nav-library" class="nav-item-bottom"><div style="font-size: 1.2rem;">📚</div><span class="small">Library</span></a>
+        <a href="#dashboard" id="nav-dashboard" class="nav-item-bottom active"><div style="font-size: 1.2rem;">🏠</div><span class="small" style="font-size: 0.75rem;">Home</span></a>
+        <a href="#library" id="nav-library" class="nav-item-bottom"><div style="font-size: 1.2rem;">📚</div><span class="small" style="font-size: 0.75rem;">Library</span></a>
+        <a href="#history" id="nav-history" class="nav-item-bottom"><div style="font-size: 1.2rem;">📝</div><span class="small" style="font-size: 0.75rem;">Logs</span></a>
+        <a href="#profile" id="nav-profile" class="nav-item-bottom"><div style="font-size: 1.2rem;">👤</div><span class="small" style="font-size: 0.75rem;">Profile</span></a>
     </div>
 </div>
 
-<div class="modal fade" id="notifModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+<div class="modal fade" id="startPeriodModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="fw-bold mb-0">Notifications</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="notifList">
-                <p class="text-muted small text-center">Loading...</p>
-            </div>
-            <div class="modal-footer border-top-0 pt-0">
-                <button type="button" class="btn btn-sm btn-light w-100" onclick="markAllRead()">Mark all as read</button>
+            <div class="modal-header border-0"><h5 class="fw-bold">Start Period</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body pt-0">
+                <form id="startPeriodForm">
+                    <label class="form-label small text-muted fw-bold mb-2">Flow Intensity (Required)</label>
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        <input type="radio" class="btn-check" name="flowInt" id="flow1" value="Light" required>
+                        <label class="symptom-pill" for="flow1">Light</label>
+                        <input type="radio" class="btn-check" name="flowInt" id="flow2" value="Medium">
+                        <label class="symptom-pill" for="flow2">Medium</label>
+                        <input type="radio" class="btn-check" name="flowInt" id="flow3" value="Heavy">
+                        <label class="symptom-pill" for="flow3">Heavy</label>
+                    </div>
+
+                    <label class="form-label small text-muted fw-bold mb-2">Log a Symptom (Optional)</label>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <input type="radio" class="btn-check" name="startSymType" id="ssymNone" value="" checked>
+                        <label class="symptom-pill" for="ssymNone">None</label>
+                        <input type="radio" class="btn-check" name="startSymType" id="ssym1" value="cramps">
+                        <label class="symptom-pill" for="ssym1">Cramps</label>
+                        <input type="radio" class="btn-check" name="startSymType" id="ssym2" value="headache">
+                        <label class="symptom-pill" for="ssym2">Headache</label>
+                        <input type="radio" class="btn-check" name="startSymType" id="ssym3" value="fatigue">
+                        <label class="symptom-pill" for="ssym3">Fatigue</label>
+                        <input type="radio" class="btn-check" name="startSymType" id="ssym4" value="spotting">
+                        <label class="symptom-pill" for="ssym4">Spotting</label>
+                    </div>
+                    
+                    <div id="startSevContainer" style="display:none;">
+                        <label class="form-label small text-muted fw-bold">Severity (1 = Mild, 5 = Severe)</label>
+                        <div class="d-flex justify-content-between px-2 text-muted small mt-1 mb-1"><span>1</span><span>5</span></div>
+                        <input type="range" id="startSymSev" class="form-range mb-4" min="1" max="5" step="1" value="3">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2">Start Cycle</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
+<div class="modal fade" id="confirmEndModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow text-center p-4">
+            <div class="modal-body p-0">
+                <div class="mb-3" style="font-size: 3rem;">🛑</div>
+                <h5 class="fw-bold mb-2">End Period?</h5>
+                <p class="text-muted small mb-4">Are you sure you want to mark your period as ended today?</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light w-50 fw-bold" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary w-50 fw-bold" onclick="endCycle()">Yes, End It</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="symptomModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0"><h5 class="fw-bold">Log Symptom</h5><button type="button" class="btn-close" onclick="window.location.hash='#dashboard'"></button></div>
+            <div class="modal-body pt-0">
+                <form id="symptomForm">
+                    <label class="form-label small text-muted fw-bold mb-2">What are you feeling?</label>
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        <input type="radio" class="btn-check" name="symType" id="sym1" value="cramps" required>
+                        <label class="symptom-pill" for="sym1">Cramps</label>
+                        <input type="radio" class="btn-check" name="symType" id="sym2" value="headache">
+                        <label class="symptom-pill" for="sym2">Headache</label>
+                        <input type="radio" class="btn-check" name="symType" id="sym3" value="fatigue">
+                        <label class="symptom-pill" for="sym3">Fatigue</label>
+                        <input type="radio" class="btn-check" name="symType" id="sym4" value="pale_skin">
+                        <label class="symptom-pill" for="sym4">Pale Skin</label>
+                        <input type="radio" class="btn-check" name="symType" id="sym5" value="spotting">
+                        <label class="symptom-pill" for="sym5">Spotting</label>
+                    </div>
+                    <label class="form-label small text-muted fw-bold">Severity (1 = Mild, 5 = Severe)</label>
+                    <div class="d-flex justify-content-between px-2 text-muted small mt-1 mb-1"><span>1</span><span>5</span></div>
+                    <input type="range" id="symSev" class="form-range mb-4" min="1" max="5" step="1" value="3">
+                    <button type="submit" class="btn btn-primary w-100 py-2">Save Log</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="notifModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-dialog-scrollable"><div class="modal-content border-0 shadow"><div class="modal-header border-bottom-0 pb-0"><h5 class="fw-bold mb-0">Notifications</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="notifList"><p class="text-muted small text-center">Loading...</p></div><div class="modal-footer border-top-0 pt-0"><button type="button" class="btn btn-sm btn-light w-100" onclick="markAllRead()">Mark all as read</button></div></div></div></div>
 <div class="modal fade" id="loginModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header border-0"><h5 class="fw-bold">Welcome Back</h5><button type="button" class="btn-close" onclick="window.location.hash=''"></button></div><div class="modal-body"><form id="loginForm"><input type="text" id="logUser" class="form-control mb-3" placeholder="Username" required><input type="password" id="logPass" class="form-control mb-3" placeholder="Password" required><button type="submit" class="btn btn-primary w-100">Log In</button></form></div></div></div></div>
 <div class="modal fade" id="registerModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header border-0"><h5 class="fw-bold">Create Account</h5><button type="button" class="btn-close" onclick="window.location.hash=''"></button></div><div class="modal-body"><form id="registerForm"><input type="text" id="regUser" class="form-control mb-2" placeholder="Username" required><input type="email" id="regEmail" class="form-control mb-2" placeholder="Email" required><input type="date" id="regDob" class="form-control mb-2" required title="Date of Birth"><input type="password" id="regPass" class="form-control mb-2" placeholder="Password" required><input type="password" id="regConfirm" class="form-control mb-3" placeholder="Confirm Password" required><button type="submit" class="btn btn-primary w-100">Sign Up</button></form></div></div></div></div>
-<div class="modal fade" id="symptomModal" tabindex="-1" data-bs-backdrop="static"><div class="modal-dialog modal-dialog-centered"><div class="modal-content border-0 shadow"><div class="modal-header border-0"><h5 class="fw-bold">Log Symptom</h5><button type="button" class="btn-close" onclick="window.location.hash='#dashboard'"></button></div><div class="modal-body"><form id="symptomForm"><select id="symType" class="form-select mb-3" required><option value="">Select Symptom...</option><option value="cramps">Cramps</option><option value="headache">Headache</option><option value="fatigue">Fatigue / Tiredness</option><option value="pale_skin">Pale Skin</option></select><label class="form-label small text-muted">Severity (1 = Mild, 5 = Severe)</label><input type="range" id="symSev" class="form-range mb-4" min="1" max="5" step="1" value="3"><button type="submit" class="btn btn-primary w-100">Save Log</button></form></div></div></div></div>
 <div class="modal fade" id="alertModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-sm"><div class="modal-content border-0 shadow text-center p-3"><div class="modal-body"><h5 class="fw-bold mb-2" id="alertTitle">Alert</h5><p class="text-muted small mb-3" id="alertMessage">Message goes here.</p><button type="button" class="btn btn-sm btn-secondary w-100" data-bs-dismiss="modal">OK</button></div></div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -169,10 +259,11 @@
         register: new bootstrap.Modal(document.getElementById('registerModal')),
         symptom: new bootstrap.Modal(document.getElementById('symptomModal')),
         alert: new bootstrap.Modal(document.getElementById('alertModal')),
-        notif: new bootstrap.Modal(document.getElementById('notifModal')) // NEW
+        notif: new bootstrap.Modal(document.getElementById('notifModal')),
+        startPeriod: new bootstrap.Modal(document.getElementById('startPeriodModal')),
+        confirmEnd: new bootstrap.Modal(document.getElementById('confirmEndModal')) // NEW
     };
 
-    // --- API WRAPPER (Untouched) ---
     async function apiFetch(endpoint, options = {}, isRetry = false) {
         let token = localStorage.getItem('access_token');
         const headers = { 'Content-Type': 'application/json' };
@@ -208,7 +299,6 @@
         } catch (error) { if (!isRetry) showAlert("Error", error.message); throw error; }
     }
 
-    // --- ROUTER ---
     function router() {
         const hash = window.location.hash || '#home';
         const isLoggedIn = !!localStorage.getItem('access_token');
@@ -227,7 +317,6 @@
             document.getElementById('auth-view').style.display = 'block';
             document.querySelectorAll('.nav-item-bottom').forEach(n => n.classList.remove('active'));
 
-            // Check for unread notifications invisibly on route change
             checkNotifications();
 
             if (hash === '#library') {
@@ -239,6 +328,14 @@
                 document.getElementById('article-view').style.display = 'block';
                 document.getElementById('nav-library').classList.add('active');
                 openArticleReader(parseInt(hash.replace('#article-', '')));
+            } else if (hash === '#history') {
+                document.getElementById('history-view').style.display = 'block';
+                document.getElementById('nav-history').classList.add('active');
+                loadHistory(); 
+            } else if (hash === '#profile') {
+                document.getElementById('profile-view').style.display = 'block';
+                document.getElementById('nav-profile').classList.add('active');
+                loadProfile(); 
             } else if (hash === '#log-symptom') {
                 document.getElementById('dashboard-view').style.display = 'block';
                 document.getElementById('nav-dashboard').classList.add('active');
@@ -252,127 +349,164 @@
         }
     }
 
-    // --- VIEW LOADERS ---
     async function loadDashboard() {
         try {
             const profile = await apiFetch('/auth/profile/');
-            document.getElementById('dashName').innerText = profile.username;
+            if (document.getElementById('dashName')) document.getElementById('dashName').innerText = profile.username;
+        } catch (e) {}
 
-            // NEW: Fetch Advice Message
+        try {
             const adviceList = await apiFetch('/advice/');
             const adviceCard = document.getElementById('adviceCard');
-            if (adviceList && adviceList.length > 0) {
-                const latest = adviceList[0]; // Gets the first/only active message
+            if (adviceCard && adviceList && adviceList.length > 0) {
+                const latest = adviceList[0];
                 document.getElementById('adviceContent').innerText = latest.message;
                 document.getElementById('adviceSender').innerText = `- ${latest.sender_name}`;
                 document.getElementById('adviceDate').innerText = new Date(latest.created_at).toLocaleDateString();
                 adviceCard.style.display = 'block';
-            } else {
-                adviceCard.style.display = 'none';
+            } else if (adviceCard) { 
+                adviceCard.style.display = 'none'; 
             }
+        } catch (e) {}
 
+        try {
             const assess = await apiFetch('/ml/assess/');
-            document.getElementById('riskLevel').innerText = assess.anemia_risk;
-            document.getElementById('riskSuggestions').innerHTML = assess.suggestions.map(s => `<p class="mb-1">${s}</p>`).join('');
+            if (document.getElementById('riskLevel')) document.getElementById('riskLevel').innerText = assess.anemia_risk;
+            if (document.getElementById('riskSuggestions')) {
+                document.getElementById('riskSuggestions').innerHTML = assess.suggestions.map(s => `<p class="mb-1">${s}</p>`).join('');
+            }
+        } catch (e) {}
 
+        try {
             const stats = await apiFetch('/stats/summary/');
-            document.getElementById('statCycle').innerText = stats.summary.average_cycle_length;
-            document.getElementById('statPeriod').innerText = stats.summary.average_period_duration;
+            if (document.getElementById('statCycle')) document.getElementById('statCycle').innerText = stats.summary.average_cycle_length;
+            if (document.getElementById('statPeriod')) document.getElementById('statPeriod').innerText = stats.summary.average_period_duration;
+        } catch (e) {}
 
+        try {
             const activeData = await apiFetch('/cycles/active/');
             const cIcon = document.getElementById('cycleIcon');
             const cText = document.getElementById('cycleActionText');
-            if (activeData.is_active) {
-                currentActiveCycleId = activeData.id;
-                cIcon.innerText = "🛑"; cText.innerText = `End Period (Day ${activeData.days_in})`;
-            } else {
-                currentActiveCycleId = null;
-                cIcon.innerText = "💧"; cText.innerText = "Start Period";
+            const cCard = document.getElementById('cycleActionCard');
+            
+            if (cIcon && cText) {
+                if (activeData.is_active) {
+                    currentActiveCycleId = activeData.id;
+                    cIcon.innerText = "🛑"; 
+                    cText.innerText = `End Period (Day ${activeData.days_in})`;
+                    if (cCard) cCard.classList.add('bg-active-cycle');
+                    cText.classList.replace('text-dark', 'text-danger');
+                } else {
+                    currentActiveCycleId = null;
+                    cIcon.innerText = "💧"; 
+                    cText.innerText = "Start Period";
+                    if (cCard) cCard.classList.remove('bg-active-cycle');
+                    cText.classList.replace('text-danger', 'text-dark');
+                }
             }
         } catch (e) {}
     }
 
-    // --- NEW: NOTIFICATIONS LOGIC ---
-    async function checkNotifications() {
-        try {
-            const notifs = await apiFetch('/notifications/');
-            const hasUnread = notifs.some(n => !n.is_read);
-            document.getElementById('notifDot').style.display = hasUnread ? 'inline-block' : 'none';
-        } catch (e) {}
-    }
-
-    async function openNotifications() {
-        modals.notif.show();
-        const listDiv = document.getElementById('notifList');
-        listDiv.innerHTML = '<p class="text-center text-muted small">Loading...</p>';
-        try {
-            const notifs = await apiFetch('/notifications/');
-            if (notifs.length === 0) {
-                listDiv.innerHTML = '<p class="text-center text-muted small my-4">You have no notifications.</p>';
-                return;
-            }
-            listDiv.innerHTML = notifs.map(n => `
-                <div class="p-3 mb-2 rounded border ${n.is_read ? 'bg-light text-muted' : 'bg-white border-primary shadow-sm'}">
-                    <h6 class="fw-bold mb-1 fs-6">${n.title} ${n.is_read ? '' : '<span class="badge bg-danger ms-1" style="font-size:0.6rem;">New</span>'}</h6>
-                    <p class="small mb-1">${n.message}</p>
-                    <small style="font-size:0.7rem;" class="${n.is_read ? 'text-muted' : 'text-primary'}">${new Date(n.created_at).toLocaleString()}</small>
-                </div>
-            `).join('');
-        } catch (e) { listDiv.innerHTML = '<p class="text-danger text-center">Failed to load.</p>'; }
-    }
-
-    async function markAllRead() {
-        try {
-            await apiFetch('/notifications/mark_all_read/', { method: 'POST' });
-            document.getElementById('notifDot').style.display = 'none';
-            openNotifications(); // Refresh list to grey them out
-        } catch (e) {}
-    }
-
-    // Library and Auth Handlers remain untouched below
-    async function loadLibrary() {
-        const container = document.getElementById('articleList');
-        try {
-            globalArticles = await apiFetch('/library/');
-            if(globalArticles.length === 0) { container.innerHTML = '<p class="text-muted text-center py-5">No articles available yet.</p>'; return; }
-            container.innerHTML = globalArticles.map(art => `
-                <div class="card mb-3 p-3 shadow-sm border-start border-4 border-primary" style="cursor: pointer;" onclick="window.location.hash='#article-${art.id}'">
-                    <h6 class="fw-bold mb-1">${art.title}</h6>
-                    <span class="badge bg-light text-dark mb-2">${art.category}</span>
-                    <p class="small text-muted mb-0">${art.summary}</p>
-                </div>
-            `).join('');
-        } catch (e) {}
-    }
-
-    function openArticleReader(id) {
-        const article = globalArticles.find(a => a.id === id);
-        if (!article) {
-            loadLibrary().then(() => {
-                const retryArticle = globalArticles.find(a => a.id === id);
-                if(retryArticle) renderArticleHTML(retryArticle); else window.location.hash = '#library';
-            }); return;
+    // FIX: Replaced native confirm with the new custom modal
+    function handleCycleClick() {
+        if (currentActiveCycleId) {
+            modals.confirmEnd.show();
+        } else {
+            modals.startPeriod.show();
         }
-        renderArticleHTML(article);
-        apiFetch(`/library/${id}/mark_read/`, { method: 'POST' }).catch(() => {});
     }
 
-    function renderArticleHTML(article) {
-        document.getElementById('readTitleTop').innerText = article.title;
-        document.getElementById('readTitle').innerText = article.title;
-        document.getElementById('readCategory').innerText = article.category;
-        document.getElementById('readAuthor').innerText = `By ${article.author || 'CHW Team'}`;
-        document.getElementById('readDate').innerText = new Date(article.published_date).toLocaleDateString();
-        document.getElementById('readContent').innerHTML = article.content;
-        window.scrollTo(0, 0);
+    async function endCycle() {
+        try {
+            modals.confirmEnd.hide(); // Hide the modal first
+            await apiFetch('/cycles/end/', { method: 'POST', body: JSON.stringify({ end_date: new Date().toISOString().split('T')[0] }) });
+            showAlert("Success", "Period marked as ended.");
+            loadDashboard();
+        } catch(e) {}
     }
+
+    document.querySelectorAll('input[name="startSymType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            document.getElementById('startSevContainer').style.display = e.target.value === "" ? 'none' : 'block';
+        });
+    });
+
+    document.getElementById('startPeriodForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const flow = document.querySelector('input[name="flowInt"]:checked').value;
+        const symp = document.querySelector('input[name="startSymType"]:checked').value;
+        const sev = parseInt(document.getElementById('startSymSev').value);
+        const today = new Date().toISOString().split('T')[0];
+
+        try {
+            await apiFetch('/cycles/start/', { method: 'POST', body: JSON.stringify({ flow_intensity: flow, start_date: today }) });
+            if (symp !== "") {
+                await apiFetch('/symptoms/', { method: 'POST', body: JSON.stringify({ date: today, symptom_type: symp, severity: sev }) });
+            }
+            modals.startPeriod.hide();
+            showAlert("Success", "New period started!");
+            loadDashboard();
+            e.target.reset();
+            document.getElementById('startSevContainer').style.display = 'none';
+        } catch (e) {}
+    };
+
+
+    async function loadHistory() {
+        const container = document.getElementById('historyList');
+        container.innerHTML = '<p class="text-muted text-center py-5">Loading logs...</p>';
+        try {
+            const [cycles, symptoms] = await Promise.all([apiFetch('/cycles/'), apiFetch('/symptoms/')]);
+            if(cycles.length === 0 && symptoms.length === 0) { container.innerHTML = '<p class="text-muted text-center py-5">No logs found.</p>'; return; }
+            let html = '';
+            cycles.forEach((cycle) => {
+                const cStart = new Date(cycle.start_date);
+                const cEnd = cycle.end_date ? new Date(cycle.end_date) : new Date();
+                const cycleSymps = symptoms.filter(s => { const sDate = new Date(s.date); return sDate >= cStart && sDate <= cEnd; });
+                const endStr = cycle.end_date ? new Date(cycle.end_date).toLocaleDateString(undefined, {month: 'short', day: 'numeric'}) : 'Ongoing';
+                const startStr = cStart.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
+
+                html += `<div class="card mb-4 shadow-sm border-0"><div class="card-header bg-light fw-bold" style="color: var(--hc-pink); border-bottom: 2px solid var(--hc-light);">Period: ${startStr} - ${endStr}</div><div class="card-body p-0">`;
+                
+                if(cycleSymps.length === 0) { html += `<p class="text-muted small p-3 mb-0">No symptoms logged.</p>`; } 
+                else {
+                    html += `<ul class="list-group list-group-flush">`;
+                    const byDate = {};
+                    cycleSymps.forEach(s => { if(!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+                    Object.keys(byDate).sort((a,b)=>new Date(b)-new Date(a)).forEach(dateStr => {
+                        html += `<li class="list-group-item bg-transparent"><div class="fw-bold small text-muted mb-2">${new Date(dateStr).toLocaleDateString()}</div><div class="d-flex flex-wrap gap-2">`;
+                        byDate[dateStr].forEach(sym => { html += `<span class="badge bg-secondary opacity-75 text-capitalize py-2 px-3 rounded-pill">${sym.symptom_type.replace('_', ' ')} (Sev: ${sym.severity})</span>`; });
+                        html += `</div></li>`;
+                    }); html += `</ul>`;
+                } html += `</div></div>`;
+            }); container.innerHTML = html;
+        } catch (e) { container.innerHTML = '<p class="text-danger text-center">Failed to load history.</p>'; }
+    }
+
+    async function loadProfile() { try { const profile = await apiFetch('/auth/profile/'); document.getElementById('profUser').value = profile.username; document.getElementById('profEmail').value = profile.email; if(profile.date_of_birth) document.getElementById('profDob').value = profile.date_of_birth; } catch (e) {} }
+    document.getElementById('profileForm').onsubmit = async (e) => { e.preventDefault(); const data = { username: document.getElementById('profUser').value, email: document.getElementById('profEmail').value, date_of_birth: document.getElementById('profDob').value }; try { await apiFetch('/auth/profile/', { method: 'PATCH', body: JSON.stringify(data) }); showAlert("Success", "Profile updated successfully!"); } catch(e) {} };
+    document.getElementById('passwordForm').onsubmit = async (e) => { e.preventDefault(); const data = { old_password: document.getElementById('passOld').value, new_password: document.getElementById('passNew').value }; try { await apiFetch('/auth/change-password/', { method: 'POST', body: JSON.stringify(data) }); showAlert("Success", "Password changed successfully!"); e.target.reset(); } catch(e) {} };
+
+    async function checkNotifications() { try { const notifs = await apiFetch('/notifications/'); const hasUnread = notifs.some(n => !n.is_read); document.getElementById('notifDot').style.display = hasUnread ? 'inline-block' : 'none'; } catch (e) {} }
+    async function openNotifications() { modals.notif.show(); const listDiv = document.getElementById('notifList'); listDiv.innerHTML = '<p class="text-center text-muted small">Loading...</p>'; try { const notifs = await apiFetch('/notifications/'); if (notifs.length === 0) { listDiv.innerHTML = '<p class="text-center text-muted small my-4">You have no notifications.</p>'; return; } listDiv.innerHTML = notifs.map(n => `<div class="p-3 mb-2 rounded border ${n.is_read ? 'bg-light text-muted' : 'bg-white border-primary shadow-sm'}"><h6 class="fw-bold mb-1 fs-6">${n.title} ${n.is_read ? '' : '<span class="badge bg-danger ms-1" style="font-size:0.6rem;">New</span>'}</h6><p class="small mb-1">${n.message}</p><small style="font-size:0.7rem;" class="${n.is_read ? 'text-muted' : 'text-primary'}">${new Date(n.created_at).toLocaleString()}</small></div>`).join(''); } catch (e) { listDiv.innerHTML = '<p class="text-danger text-center">Failed to load.</p>'; } }
+    async function markAllRead() { try { await apiFetch('/notifications/mark_all_read/', { method: 'POST' }); document.getElementById('notifDot').style.display = 'none'; openNotifications(); } catch (e) {} }
+
+    async function loadLibrary() { const container = document.getElementById('articleList'); try { globalArticles = await apiFetch('/library/'); if(globalArticles.length === 0) { container.innerHTML = '<p class="text-muted text-center py-5">No articles available yet.</p>'; return; } container.innerHTML = globalArticles.map(art => `<div class="card mb-3 p-3 shadow-sm border-start border-4 border-primary" style="cursor: pointer;" onclick="window.location.hash='#article-${art.id}'"><h6 class="fw-bold mb-1">${art.title}</h6><span class="badge bg-light text-dark mb-2" style="width:fit-content;">${art.category}</span><p class="small text-muted mb-0">${art.summary}</p></div>`).join(''); } catch (e) {} }
+    function openArticleReader(id) { const article = globalArticles.find(a => a.id === id); if (!article) { loadLibrary().then(() => { const retryArticle = globalArticles.find(a => a.id === id); if(retryArticle) renderArticleHTML(retryArticle); else window.location.hash = '#library'; }); return; } renderArticleHTML(article); apiFetch(`/library/${id}/mark_read/`, { method: 'POST' }).catch(() => {}); }
+    function renderArticleHTML(article) { document.getElementById('readTitleTop').innerText = article.title; document.getElementById('readTitle').innerText = article.title; document.getElementById('readCategory').innerText = article.category; document.getElementById('readContent').innerHTML = article.content; window.scrollTo(0, 0); }
 
     document.getElementById('loginForm').onsubmit = async (e) => { e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled = true; try { const res = await apiFetch('/auth/login/', { method: 'POST', body: JSON.stringify({ username: document.getElementById('logUser').value, password: document.getElementById('logPass').value }) }); const access = res.access || (res.tokens && res.tokens.access); const refresh = res.refresh || (res.tokens && res.tokens.refresh); if(access) { localStorage.setItem('access_token', access); if(refresh) localStorage.setItem('refresh_token', refresh); window.location.hash = '#dashboard'; } } finally { btn.disabled = false; } };
     document.getElementById('registerForm').onsubmit = async (e) => { e.preventDefault(); const btn = e.target.querySelector('button'); btn.disabled = true; const data = { username: document.getElementById('regUser').value, email: document.getElementById('regEmail').value, date_of_birth: document.getElementById('regDob').value, password: document.getElementById('regPass').value, confirm_password: document.getElementById('regConfirm').value, }; try { const res = await apiFetch('/auth/signup/', { method: 'POST', body: JSON.stringify(data) }); const access = res.tokens && res.tokens.access; const refresh = res.tokens && res.tokens.refresh; if(access) { localStorage.setItem('access_token', access); if(refresh) localStorage.setItem('refresh_token', refresh); window.location.hash = '#dashboard'; } } finally { btn.disabled = false; } };
     function logout(callApi = true) { if (callApi && localStorage.getItem('refresh_token')) { apiFetch('/auth/logout/', { method: 'POST', body: JSON.stringify({ refresh: localStorage.getItem('refresh_token') }) }).catch(() => {}); } localStorage.removeItem('access_token'); localStorage.removeItem('refresh_token'); globalArticles = []; window.location.hash = '#home'; }
 
-    async function toggleCycle() { try { if (currentActiveCycleId) { await apiFetch('/cycles/end/', { method: 'POST', body: JSON.stringify({ end_date: new Date().toISOString().split('T')[0] }) }); showAlert("Success", "Period marked as ended."); } else { await apiFetch('/cycles/start/', { method: 'POST', body: JSON.stringify({ flow_intensity: 'Medium', start_date: new Date().toISOString().split('T')[0] }) }); showAlert("Success", "New period logged."); } loadDashboard(); } catch (e) {} }
-    document.getElementById('symptomForm').onsubmit = async (e) => { e.preventDefault(); const data = { date: new Date().toISOString().split('T')[0], symptom_type: document.getElementById('symType').value, severity: parseInt(document.getElementById('symSev').value) }; try { await apiFetch('/symptoms/', { method: 'POST', body: JSON.stringify(data) }); showAlert("Logged", "Symptom saved successfully."); window.location.hash = '#dashboard'; loadDashboard(); } catch (e) {} };
+    document.getElementById('symptomForm').onsubmit = async (e) => { 
+        e.preventDefault(); 
+        const selectedSymptom = document.querySelector('input[name="symType"]:checked');
+        if(!selectedSymptom) { showAlert("Error", "Please select a symptom."); return; }
+        const data = { date: new Date().toISOString().split('T')[0], symptom_type: selectedSymptom.value, severity: parseInt(document.getElementById('symSev').value) }; 
+        try { await apiFetch('/symptoms/', { method: 'POST', body: JSON.stringify(data) }); showAlert("Logged", "Symptom saved successfully."); window.location.hash = '#dashboard'; loadDashboard(); e.target.reset(); } catch (e) {} 
+    };
+    
     function showAlert(title, msg) { document.getElementById('alertTitle').innerText = title; document.getElementById('alertMessage').innerText = msg; modals.alert.show(); }
 
     window.addEventListener('hashchange', router);
